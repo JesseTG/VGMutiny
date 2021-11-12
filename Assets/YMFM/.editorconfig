@@ -1,0 +1,2 @@
+﻿[*.Tables.cs]
+csharp_space_after_comma = false
