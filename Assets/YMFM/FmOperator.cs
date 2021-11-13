@@ -160,7 +160,7 @@ namespace Ymfm
         //-------------------------------------------------
         public void KeyOnOff(uint on, KeyOnType type)
         {
-            _keyOnLive = (byte)((uint)(_keyOnLive & ~(1 << (int)(type))) | (Utils.Bitfield(@on, 0) << (int)(type)));
+            _keyOnLive = (byte)(_keyOnLive & ~(1u << (int)(type)) | (Utils.Bitfield(on, 0) << (int)type));
         }
 
         // return a reference to our registers

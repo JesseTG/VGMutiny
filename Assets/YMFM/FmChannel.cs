@@ -294,7 +294,7 @@ namespace Ymfm
             // High Hat: this uses the envelope from operator 13 (channel 7),
             // and a combination of noise and the operator 13/17 phase select
             // to compute the phase
-            var phase = (phaseSelect << 9) | (uint)(0xd0 >> (int)(2 * (noiseState ^ phaseSelect)));
+            var phase = (phaseSelect << 9) | 0xd0u >> (int)(2 * (noiseState ^ phaseSelect));
             var result = _operators[0].ComputeVolume(phase, amOffset) >> (int)rshift;
 
             // Snare Drum: this uses the envelope from operator 16 (channel 7),

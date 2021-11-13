@@ -254,7 +254,7 @@ namespace Ymfm
                 else if (Registers.Channels >= 9 && keyOnChannel == Registers.RhythmChannel)
                 {
                     // special case for the OPL rhythm channels
-                    _channels[6].KeyOnOff((uint)(Utils.Bitfield(keyOnOpMask, 4) != 0 ? 3 : 0), KeyOnType.Rhythm, 6);
+                    _channels[6].KeyOnOff(Utils.Bitfield(keyOnOpMask, 4) != 0 ? 3u : 0u, KeyOnType.Rhythm, 6);
                     _channels[7].KeyOnOff(Utils.Bitfield(keyOnOpMask, 0) | (Utils.Bitfield(keyOnOpMask, 3) << 1),
                         KeyOnType.Rhythm,
                         7);
