@@ -22,6 +22,9 @@ namespace Ymfm.Vgm
         [SerializeField, HideInInspector]
         private byte[] _data = Array.Empty<byte>();
 
+        [SerializeField]
+        private VgmHeader _header;
+
         public ReadOnlySpan<byte> Data => _data;
 
         [Conditional("UNITY_EDITOR")]
@@ -47,6 +50,7 @@ namespace Ymfm.Vgm
             var vgm = CreateInstance<VgmFile>();
 
             vgm._data = data.ToArray();
+            vgm._header = new VgmHeader(data);
 
             return vgm;
         }
@@ -61,6 +65,7 @@ namespace Ymfm.Vgm
             var vgm = CreateInstance<VgmFile>();
 
             vgm._data = data;
+            vgm._header = new VgmHeader(data);
 
             return vgm;
         }
