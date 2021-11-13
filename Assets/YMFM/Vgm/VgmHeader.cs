@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using JetBrains.Annotations;
+using Sirenix.OdinInspector;
 
 namespace Ymfm.Vgm
 {
@@ -9,18 +10,24 @@ namespace Ymfm.Vgm
     [Serializable]
     public struct VgmHeader
     {
+        public const uint MagicNumber = 0x20_6d_67_56;
+        public const uint MaxVersion = 0x171;
+
+        public uint Magic;
+
+
         /// <summary>
         /// Relative offset to end of file (i.e. file length - 4). This is mainly used to find the next track when
         /// concatenating player stubs and multiple files. 
         /// </summary>
-        [FieldOffset(0x04)]
+        //[FieldOffset(0x04)]
         public uint EndOfFileOffset;
 
         /// <summary>
         /// Version number in BCD-Code. e.g. Version 1.70 is stored as <c>0x00000171</c>. This is used for backwards
         /// compatibility in players, and defines which header values are valid. 
         /// </summary>
-        [FieldOffset(0x08)]
+        //[FieldOffset(0x08)]
         public uint Version;
 
         /// <summary>
@@ -35,27 +42,30 @@ namespace Ymfm.Vgm
         /// (PSG variant used in Neo Geo Pocket)
         /// </para>
         /// </summary>
-        [FieldOffset(0x0C)]
+        //[FieldOffset(0x0C)]
+        [SuffixLabel("Hz")]
         public uint Sn76489Clock;
 
         /// <summary>
         /// Input clock rate in Hz for the YM2413 chip. A typical value is <c>3579545</c>.
         /// It should be 0 if there is no YM2413 chip used. 
         /// </summary>
-        [FieldOffset(0x10)]
+        //[FieldOffset(0x10)]
+        [SuffixLabel("Hz")]
         public uint Ym2413Clock;
 
         /// <summary>
         /// Relative offset to GD3 tag. 0 if no GD3 tag. GD3 tags are descriptive tags similar in use to ID3 tags in MP3
         /// files. See the GD3 specification for more details. The GD3 tag is usually stored immediately after the VGM data. 
         /// </summary>
-        [FieldOffset(0x14)]
+        //[FieldOffset(0x14)]
+        [SuffixLabel("Hz")]
         public uint Gd3Offset;
 
         /// <summary>
         /// Total of all wait values in the file. 
         /// </summary>
-        [FieldOffset(0x18)]
+        //[FieldOffset(0x18)]
         public uint TotalNumSamples;
 
         /// <summary>
@@ -63,7 +73,7 @@ namespace Ymfm.Vgm
         /// in bytes <c>0x0040 - 0x3FFF</c> of the file, but the main looping section started at <c>0x4000</c>, this
         /// would contain the value <c>0x4000 - 0x1C = 0x00003FE4</c>. 
         /// </summary>
-        [FieldOffset(0x1C)]
+        //[FieldOffset(0x1C)]
         public uint LoopOffset;
 
 
@@ -71,7 +81,7 @@ namespace Ymfm.Vgm
         /// Number of samples in one loop, or 0 if there is no loop. Total of all wait values between the loop point and
         /// the end of the file. 
         /// </summary>
-        [FieldOffset(0x20)]
+        //[FieldOffset(0x20)]
         public uint LoopNumSamples;
 
         #region VGM 1.01 Additions
@@ -81,7 +91,8 @@ namespace Ymfm.Vgm
         /// NTSC systems. It should be set to zero if rate scaling is not appropriate - for example, if the game adjusts
         /// its music engine for the system's speed. VGM 1.00 files will have a value of 0. 
         /// </summary>
-        [FieldOffset(0x24)]
+        //[FieldOffset(0x24)]
+        [SuffixLabel("Hz")]
         public uint Rate;
 
         #endregion
@@ -112,7 +123,7 @@ namespace Ymfm.Vgm
         /// </list> 
         /// For version 1.01 and earlier files, the feedback pattern should be assumed to be 0x0009. If the PSG is not used then this may be omitted (left at zero). 
         /// </summary>
-        [FieldOffset(0x28)]
+        //[FieldOffset(0x28)]
         public ushort Sn76489Feedback;
 
         /// <summary>
@@ -137,7 +148,8 @@ namespace Ymfm.Vgm
         /// </list>
         /// For version 1.01 and earlier files, the shift register width should be assumed to be 16. If the PSG is not used then this may be omitted (left at zero). 
         /// </summary>
-        [FieldOffset(0x2A)]
+        //[FieldOffset(0x2A)]
+        [SuffixLabel("bits")]
         public byte Sn76489ShiftRegisterWidth;
 
         #endregion
@@ -174,7 +186,7 @@ namespace Ymfm.Vgm
         /// </list>
         /// For version 1.51 and earlier files, all the flags should not be set. If the PSG is not used then this may be omitted (left at zero). 
         /// </summary>
-        [FieldOffset(0x2B)]
+        //[FieldOffset(0x2B)]
         public byte Sn76489Flags;
 
         private const byte OutputNegateFlag = 0b00000010;
@@ -213,7 +225,8 @@ namespace Ymfm.Vgm
         /// For version 1.01 and earlier files, the YM2413 clock rate should be used for the clock rate of the YM2612.
         /// </para>
         /// </summary>
-        [FieldOffset(0x2C)]
+        //[FieldOffset(0x2C)]
+        [SuffixLabel("Hz")]
         public uint Ym2612Clock;
 
 
@@ -228,7 +241,8 @@ namespace Ymfm.Vgm
         /// For version 1.01 and earlier files, the YM2413 clock rate should be used for the clock rate of the YM2151.
         /// </para>
         /// </summary>
-        [FieldOffset(0x30)]
+        //[FieldOffset(0x30)]
+        [SuffixLabel("Hz")]
         public uint Ym2151Clock;
 
         #endregion
@@ -244,7 +258,7 @@ namespace Ymfm.Vgm
         /// it should be 0 and the VGM data must start at offset 0x40.
         /// </para>
         /// </summary>
-        [FieldOffset(0x34)]
+        //[FieldOffset(0x34)]
         public uint VgmDataOffset;
 
         #endregion
@@ -259,7 +273,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no Sega PCM chip used. 
         /// </para>
         /// </summary>
-        [FieldOffset(0x38)]
+        //[FieldOffset(0x38)]
         public uint SegaPcmClock;
 
         /// <summary>
@@ -270,7 +284,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no Sega PCM chip used. 
         /// </para>
         /// </summary>
-        [FieldOffset(0x3C)]
+        //[FieldOffset(0x3C)]
         public uint SegaPcmInterfaceRegister;
 
         /// <summary>
@@ -281,7 +295,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no RF5C68 chip used. 
         /// </para>
         /// </summary>
-        [FieldOffset(0x40)]
+        //[FieldOffset(0x40)]
         public uint Rf5c68Clock;
 
         /// <summary>
@@ -292,7 +306,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no YM2203 chip used. 
         /// </para>
         /// </summary>
-        [FieldOffset(0x44)]
+        //[FieldOffset(0x44)]
         public uint Ym2203Clock;
 
         /// <summary>
@@ -303,7 +317,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no YM2608 chip used. 
         /// </para>
         /// </summary>
-        [FieldOffset(0x48)]
+        //[FieldOffset(0x48)]
         public uint Ym2608Clock;
 
         /// <summary>
@@ -316,7 +330,7 @@ namespace Ymfm.Vgm
         /// if bit 31 is clear it is an YM2610.
         /// </para>
         /// </summary>
-        [FieldOffset(0x4C)]
+        //[FieldOffset(0x4C)]
         public uint Ym2610Clock;
 
         private const uint IsYm2610BFlag = (1u << 31);
@@ -337,7 +351,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no YM3812 chip used. 
         /// </para>
         /// </summary>
-        [FieldOffset(0x50)]
+        //[FieldOffset(0x50)]
         public uint Ym3812Clock;
 
         /// <summary>
@@ -348,7 +362,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no YM3526 chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0x54)]
+        //[FieldOffset(0x54)]
         public uint Ym3526Clock;
 
         /// <summary>
@@ -359,7 +373,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no Y8950 chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0x58)]
+        //[FieldOffset(0x58)]
         public uint Y8950Clock;
 
         /// <summary>
@@ -370,7 +384,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no YMF262 chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0x5C)]
+        //[FieldOffset(0x5C)]
         public uint Ymf262Clock;
 
         /// <summary>
@@ -381,7 +395,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no YMF278B chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0x60)]
+        //[FieldOffset(0x60)]
         public uint Ymf278bClock;
 
         /// <summary>
@@ -392,7 +406,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no YMF271 chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0x64)]
+        //[FieldOffset(0x64)]
         public uint Ymf271Clock;
 
         /// <summary>
@@ -403,7 +417,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no YMZ280B chip used. 
         /// </para>
         /// </summary>
-        [FieldOffset(0x68)]
+        //[FieldOffset(0x68)]
         public uint Ymz280bClock;
 
         /// <summary>
@@ -414,7 +428,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no RF5C164 chip used. 
         /// </para>
         /// </summary>
-        [FieldOffset(0x6C)]
+        //[FieldOffset(0x6C)]
         public uint Rf5c164Clock;
 
         /// <summary>
@@ -425,7 +439,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no PWM chip used. 
         /// </para>
         /// </summary>
-        [FieldOffset(0x70)]
+        //[FieldOffset(0x70)]
         public uint PwmClock;
 
         /// <summary>
@@ -436,7 +450,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no AY8910 chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0x74)]
+        //[FieldOffset(0x74)]
         public uint Ay8910Clock;
 
         /// <summary>
@@ -481,7 +495,7 @@ namespace Ymfm.Vgm
         /// </list>
         /// If the AY8910 is not used then this may be omitted (left at zero). 
         /// </summary>
-        [FieldOffset(0x78)]
+        //[FieldOffset(0x78)]
         public byte Ay8910ChipType;
 
         /// <summary>
@@ -514,19 +528,19 @@ namespace Ymfm.Vgm
         /// </list>
         /// If the AY8910 is not used then this may be omitted (left at zero). 
         /// </summary>
-        [FieldOffset(0x79)]
+        //[FieldOffset(0x79)]
         public byte Ay8910Flags;
 
         /// <summary>
         /// Misc flags for the AY8910. This one is specific for the AY8910 that's connected with/part of the YM2203.
         /// </summary>
-        [FieldOffset(0x7A)]
+        //[FieldOffset(0x7A)]
         public byte Ym2203Ay8910Flags;
 
         /// <summary>
         /// Misc flags for the AY8910. This one is specific for the AY8910 that's connected with/part of the YM2608.
         /// </summary>
-        [FieldOffset(0x7B)]
+        //[FieldOffset(0x7B)]
         public byte Ym2608Ay8910Flags;
 
         #endregion
@@ -544,7 +558,7 @@ namespace Ymfm.Vgm
         /// the Volume Modifier without breaking compatibility with old players.
         /// </para>
         /// </summary>
-        [FieldOffset(0x7C)]
+        //[FieldOffset(0x7C)]
         public byte VolumeModifier;
 
         /// <summary>
@@ -554,7 +568,7 @@ namespace Ymfm.Vgm
         /// number of loops that are played is calculated as following: NumLoops = NumLoopsModified - LoopBase Default
         /// is 0. Negative numbers are possible (80h...FFh = -128...-1)
         /// </summary>
-        [FieldOffset(0x7E)]
+        //[FieldOffset(0x7E)]
         public byte LoopBase;
 
         #endregion
@@ -571,7 +585,7 @@ namespace Ymfm.Vgm
         /// </code>
         /// Default is 0, which is equal to 0x10. 
         /// </summary>
-        [FieldOffset(0x7F)]
+        //[FieldOffset(0x7F)]
         public byte LoopModifier;
 
         #endregion
@@ -586,7 +600,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no GB DMG chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0x80)]
+        //[FieldOffset(0x80)]
         public uint GameBoyDmgClock;
 
         /// <summary>
@@ -600,7 +614,7 @@ namespace Ymfm.Vgm
         /// Note: Bit 31 (0x80000000) is used to enable the FDS sound addon. Set to enable, clear to disable.
         /// </para>
         /// </summary>
-        [FieldOffset(0x84)]
+        //[FieldOffset(0x84)]
         public uint NesApuClock;
 
         /// <summary>
@@ -611,7 +625,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no MultiPCM chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0x88)]
+        //[FieldOffset(0x88)]
         public uint MultiPcmClock;
 
         /// <summary>
@@ -622,7 +636,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no uPD7759 chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0x8C)]
+        //[FieldOffset(0x8C)]
         public uint Upd7759Clock;
 
         /// <summary>
@@ -633,7 +647,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no OKIM6258 chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0x90)]
+        //[FieldOffset(0x90)]
         public uint Okim6258Clock;
 
         /// <summary>
@@ -662,7 +676,7 @@ namespace Ymfm.Vgm
         /// </list>
         /// If the OKIM6258 is not used then this may be omitted (left at zero).
         /// </summary>
-        [FieldOffset(0x94)]
+        //[FieldOffset(0x94)]
         public byte Okim6258Flags;
 
         /// <summary>
@@ -691,7 +705,7 @@ namespace Ymfm.Vgm
         /// </list>
         /// If the K054539 is not used then this may be omitted (left at zero).
         /// </summary>
-        [FieldOffset(0x95)]
+        //[FieldOffset(0x95)]
         public byte K054539Flags;
 
         /// <summary>
@@ -716,7 +730,7 @@ namespace Ymfm.Vgm
         /// </list>
         /// If the C140 is not used then this may be omitted (left at zero).
         /// </summary>
-        [FieldOffset(0x96)]
+        //[FieldOffset(0x96)]
         public byte C140ChipType;
 
         /// <summary>
@@ -727,7 +741,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no OKIM6295 chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0x98)]
+        //[FieldOffset(0x98)]
         public uint Okim6295Clock;
 
         /// <summary>
@@ -738,7 +752,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no K051649 chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0x9C)]
+        //[FieldOffset(0x9C)]
         public uint K051649Clock;
 
         /// <summary>
@@ -749,7 +763,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no K054539 chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0xA0)]
+        //[FieldOffset(0xA0)]
         public uint K054539Clock;
 
         /// <summary>
@@ -760,7 +774,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no HuC6280 chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0xA4)]
+        //[FieldOffset(0xA4)]
         public uint HuC6280Clock;
 
         /// <summary>
@@ -771,7 +785,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no C140 chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0xA8)]
+        //[FieldOffset(0xA8)]
         public uint C140Clock;
 
         /// <summary>
@@ -782,7 +796,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no K053260 chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0xAC)]
+        //[FieldOffset(0xAC)]
         public uint K053260Clock;
 
         /// <summary>
@@ -793,7 +807,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no Pokey chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0xB0)]
+        //[FieldOffset(0xB0)]
         public uint PokeyClock;
 
         /// <summary>
@@ -804,7 +818,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no QSound chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0xB4)]
+        //[FieldOffset(0xB4)]
         public uint QsoundClock;
 
         #endregion
@@ -819,7 +833,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no SCSP chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0xB8)]
+        //[FieldOffset(0xB8)]
         public uint ScspClock;
 
         #endregion
@@ -829,7 +843,7 @@ namespace Ymfm.Vgm
         /// <summary>
         /// Relative offset to the extra header or 0 if no extra header is present.
         /// </summary>
-        [FieldOffset(0xBC)]
+        //[FieldOffset(0xBC)]
         public uint ExtraHeaderOffset;
 
         #endregion
@@ -844,7 +858,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no WonderSwan chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0xC0)]
+        //[FieldOffset(0xC0)]
         public uint WonderSwanClock;
 
         /// <summary>
@@ -855,7 +869,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no VSU chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0xC4)]
+        //[FieldOffset(0xC4)]
         public uint VsuClock;
 
         /// <summary>
@@ -866,7 +880,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no SAA1099 chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0xC8)]
+        //[FieldOffset(0xC8)]
         public uint Saa1099Clock;
 
         /// <summary>
@@ -877,7 +891,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no ES5503 chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0xCC)]
+        //[FieldOffset(0xCC)]
         public uint Es5503Clock;
 
         /// <summary>
@@ -892,7 +906,7 @@ namespace Ymfm.Vgm
         /// bit 31 is clear it is an ES5505.
         /// </para>
         /// </summary>
-        [FieldOffset(0xD0)]
+        //[FieldOffset(0xD0)]
         public uint Es5505Es5506Clock;
 
         /// <summary>
@@ -906,7 +920,7 @@ namespace Ymfm.Vgm
         /// If the ES5503 is not used then this may be omitted (left at zero).
         /// </para>
         /// </summary>
-        [FieldOffset(0xD4)]
+        //[FieldOffset(0xD4)]
         public byte Es5503Channels;
 
         /// <summary>
@@ -920,7 +934,7 @@ namespace Ymfm.Vgm
         /// If the ES5506 is not used then this may be omitted (left at zero).
         /// </para>
         /// </summary>
-        [FieldOffset(0xD5)]
+        //[FieldOffset(0xD5)]
         public byte Es5505Es5506Channels;
 
         /// <summary>
@@ -932,7 +946,7 @@ namespace Ymfm.Vgm
         /// If the C352 is not used then this may be omitted (left at zero).
         /// </para>
         /// </summary>
-        [FieldOffset(0xD6)]
+        //[FieldOffset(0xD6)]
         public byte C352ClockDivider;
 
         /// <summary>
@@ -943,7 +957,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no X1-010 chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0xD8)]
+        //[FieldOffset(0xD8)]
         public uint X1010Clock;
 
         /// <summary>
@@ -954,7 +968,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no C352 chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0xDC)]
+        //[FieldOffset(0xDC)]
         public uint C352Clock;
 
         /// <summary>
@@ -965,7 +979,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no GA20 chip used.
         /// </para>
         /// </summary>
-        [FieldOffset(0xE0)]
+        //[FieldOffset(0xE0)]
         public uint Ga20Clock;
 
         #endregion
