@@ -29,7 +29,7 @@ namespace Ymfm.Vgm
 
             _clock = clock;
             _clocks = 0;
-            _step = (long)(0x100000000ul / _chip.SampleRate(clock));
+            _step = 0x100000000L / _chip.SampleRate(clock);
             _pos = 0;
             _chip.Reset();
         }
@@ -49,8 +49,10 @@ namespace Ymfm.Vgm
         // generate one output sample of output
         public override unsafe void Generate(long outputStart, long outputStep, Span<int> buffer)
         {
-            uint addr1 = 0xffff, addr2 = 0xffff;
-            byte data1 = 0, data2 = 0;
+            var addr1 = 0xffffu;
+            var addr2 = 0xffffu;
+            byte data1 = 0;
+            byte data2 = 0;
 
             // see if there is data to be written; if so, extract it and dequeue
             if (_queue.Count > 0)
