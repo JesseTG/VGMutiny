@@ -983,5 +983,341 @@ namespace Ymfm.Vgm
         public uint Ga20Clock;
 
         #endregion
+
+        public VgmHeader(ReadOnlySpan<byte> input)
+        {
+            switch (input.Length)
+            {
+                case 0:
+                    throw new ArgumentException("Input is empty");
+                case < 4:
+                    throw new ArgumentException("No magic number");
+            }
+
+            // +00: check the magic ID 
+            Magic = 0;
+            EndOfFileOffset = 0;
+            Version = 0;
+            Sn76489Clock = 0;
+            Ym2413Clock = 0;
+            Gd3Offset = 0;
+            TotalNumSamples = 0;
+            LoopOffset = 0;
+            LoopNumSamples = 0;
+            Rate = 0;
+            Sn76489Feedback = 0;
+            Sn76489ShiftRegisterWidth = 0;
+            Sn76489Flags = 0;
+            Ym2612Clock = 0;
+            Ym2151Clock = 0;
+            VgmDataOffset = 0;
+            SegaPcmClock = 0;
+            SegaPcmInterfaceRegister = 0;
+            Rf5c68Clock = 0;
+            Ym2203Clock = 0;
+            Ym2608Clock = 0;
+            Ym2610Clock = 0;
+            Ym3812Clock = 0;
+            Ym3526Clock = 0;
+            Y8950Clock = 0;
+            Ymf262Clock = 0;
+            Ymf278bClock = 0;
+            Ymf271Clock = 0;
+            Ymz280bClock = 0;
+            Rf5c164Clock = 0;
+            PwmClock = 0;
+            Ay8910Clock = 0;
+            Ay8910ChipType = 0;
+            Ay8910Flags = 0;
+            Ym2203Ay8910Flags = 0;
+            Ym2608Ay8910Flags = 0;
+            VolumeModifier = 0;
+            LoopBase = 0;
+            LoopModifier = 0;
+            GameBoyDmgClock = 0;
+            NesApuClock = 0;
+            MultiPcmClock = 0;
+            Upd7759Clock = 0;
+            Okim6258Clock = 0;
+            Okim6258Flags = 0;
+            K054539Flags = 0;
+            C140ChipType = 0;
+            Okim6295Clock = 0;
+            K051649Clock = 0;
+            K054539Clock = 0;
+            HuC6280Clock = 0;
+            C140Clock = 0;
+            K053260Clock = 0;
+            PokeyClock = 0;
+            QsoundClock = 0;
+            ScspClock = 0;
+            ExtraHeaderOffset = 0;
+            WonderSwanClock = 0;
+            VsuClock = 0;
+            Saa1099Clock = 0;
+            Es5503Clock = 0;
+            Es5505Es5506Clock = 0;
+            Es5503Channels = 0;
+            Es5505Es5506Channels = 0;
+            C352ClockDivider = 0;
+            X1010Clock = 0;
+            C352Clock = 0;
+            Ga20Clock = 0;
+
+            InitializeHeader(input);
+        }
+
+        // TODO: Reduce the branching here
+        private void InitializeHeader(ReadOnlySpan<byte> input)
+        {
+            // +00: check the magic ID 
+            this.Magic = input.ReadUInt32LittleEndian(0x00);
+
+            if (Magic != MagicNumber)
+            { // Not a valid VGM file
+
+                return;
+            }
+
+            // +04: parse the size
+            EndOfFileOffset = input.ReadUInt32LittleEndian(0x04);
+
+            // +08: parse the version
+            Version = input.ReadUInt32LittleEndian(0x08);
+
+            // +0C: SN76489 clock
+            Sn76489Clock = input.ReadUInt32LittleEndian(0x0C);
+
+            // +10: YM2413 clock
+            Ym2413Clock = input.ReadUInt32LittleEndian(0x10);
+
+            // +14: GD3 offset
+            Gd3Offset = input.ReadUInt32LittleEndian(0x14);
+
+            // +18: Total # samples
+            TotalNumSamples = input.ReadUInt32LittleEndian(0x18);
+
+            // +1C: Loop offset
+            LoopOffset = input.ReadUInt32LittleEndian(0x1C);
+
+            // +20: Loop # samples
+            LoopNumSamples = input.ReadUInt32LittleEndian(0x20);
+
+            // +24: Rate
+            Rate = input.ReadUInt32LittleEndian(0x24);
+
+            // +28: SN76489 feedback
+            Sn76489Feedback = input.ReadUInt16LittleEndian(0x28);
+
+            // +2A: SN76489 shift register width
+            Sn76489ShiftRegisterWidth = input[0x2A];
+
+            // +2B: SN76489 Flags
+            Sn76489Flags = input[0x2B];
+
+            // +2C: YM2612 clock
+            Ym2612Clock = input.ReadUInt32LittleEndian(0x2C);
+
+            // +30: YM2151 clock
+            Ym2151Clock = input.ReadUInt32LittleEndian(0x30);
+
+            // +34: VGM data offset
+            VgmDataOffset = input.ReadUInt32LittleEndian(0x34);
+            VgmDataOffset += 0x34U;
+            if (Version < 0x150)
+            {
+                VgmDataOffset = 0x40;
+            }
+
+            // +38: Sega PCM clock
+            SegaPcmClock = input.ReadUInt32LittleEndian(0x38);
+
+            // +3C: Sega PCM interface register
+            SegaPcmInterfaceRegister = input.ReadUInt32LittleEndian(0x3C);
+
+            // +40: RF5C68 clock
+            if (0x40 + 4 > VgmDataOffset) return;
+            Rf5c68Clock = input.ReadUInt32LittleEndian(0x40);
+
+            // +44: YM2203 clock
+            if (0x44 + 4 > VgmDataOffset) return;
+            Ym2203Clock = input.ReadUInt32LittleEndian(0x44);
+
+            // +48: YM2608 clock
+            if (0x48 + 4 > VgmDataOffset) return;
+            Ym2608Clock = input.ReadUInt32LittleEndian(0x48);
+
+            // +4C: YM2610/2610B clock
+            if (0x4C + 4 > VgmDataOffset) return;
+            Ym2610Clock = input.ReadUInt32LittleEndian(0x4C);
+
+            // +50: YM3812 clock
+            if (0x50 + 4 > VgmDataOffset) return;
+            Ym3812Clock = input.ReadUInt32LittleEndian(0x50);
+
+            // +54: YM3526 clock
+            if (0x54 + 4 > VgmDataOffset) return;
+            Ym3526Clock = input.ReadUInt32LittleEndian(0x54);
+
+            // +58: Y8950 clock
+            if (0x58 + 4 > VgmDataOffset) return;
+            Y8950Clock = input.ReadUInt32LittleEndian(0x58);
+
+            // +5C: YMF262 clock
+            if (0x5C + 4 > VgmDataOffset) return;
+            Ymf262Clock = input.ReadUInt32LittleEndian(0x5C);
+
+            // +60: YMF278B clock
+            if (0x60 + 4 > VgmDataOffset) return;
+            Ymf278bClock = input.ReadUInt32LittleEndian(0x60);
+
+            // +64: YMF271 clock
+            if (0x64 + 4 > VgmDataOffset) return;
+            Ymf271Clock = input.ReadUInt32LittleEndian(0x64);
+
+            // +68: YMZ280B clock
+            if (0x68 + 4 > VgmDataOffset) return;
+            Ymz280bClock = input.ReadUInt32LittleEndian(0x68);
+
+            // +6C: RF5C164 clock
+            if (0x6C + 4 > VgmDataOffset) return;
+            Rf5c164Clock = input.ReadUInt32LittleEndian(0x6C);
+
+            // +70: PWM clock
+            if (0x70 + 4 > VgmDataOffset) return;
+            PwmClock = input.ReadUInt32LittleEndian(0x70);
+
+            // +74: AY8910 clock
+            if (0x74 + 4 > VgmDataOffset) return;
+            Ay8910Clock = input.ReadUInt32LittleEndian(0x74);
+
+            // +78: AY8910 chip type
+            if (0x78 + 4 > VgmDataOffset) return;
+            Ay8910ChipType = input[0x78];
+
+            // +79: AY8910 flags
+            Ay8910Flags = input[0x79];
+
+            // +7A: YM2203/AY8910 flags
+            Ym2203Ay8910Flags = input[0x7A];
+
+            // +7B: YM2608/AY8910 flags
+            Ym2608Ay8910Flags = input[0x7B];
+
+            // +7C: Volume modifier
+            if (0x7C + 4 > VgmDataOffset) return;
+            VolumeModifier = input[0x7C];
+
+            // +7D: Reserved
+            // +7E: Loop base
+            LoopBase = input[0x7E];
+
+            // +7F: Loop modifier
+            LoopModifier = input[0x7F];
+
+            // +80: GameBoy DMG clock
+            if (0x80 + 4 > VgmDataOffset) return;
+            GameBoyDmgClock = input.ReadUInt32LittleEndian(0x80);
+
+            // +84: NES APU clock
+            if (0x84 + 4 > VgmDataOffset) return;
+            NesApuClock = input.ReadUInt32LittleEndian(0x84);
+
+            // +88: MultiPCM clock
+            if (0x88 + 4 > VgmDataOffset) return;
+            MultiPcmClock = input.ReadUInt32LittleEndian(0x88);
+
+            // +8C: uPD7759 clock
+            if (0x8C + 4 > VgmDataOffset) return;
+            Upd7759Clock = input.ReadUInt32LittleEndian(0x8C);
+
+            // +90: OKIM6258 clock
+            if (0x90 + 4 > VgmDataOffset) return;
+            Okim6258Clock = input.ReadUInt32LittleEndian(0x90);
+
+            // +94: OKIM6258 Flags / K054539 Flags / C140 Chip Type / reserved
+            if (0x94 + 4 > VgmDataOffset) return;
+            Okim6258Flags = input[0x94];
+            K054539Flags = input[0x95];
+            C140ChipType = input[0x96];
+
+            // +98: OKIM6295 clock
+            if (0x98 + 4 > VgmDataOffset) return;
+            Okim6295Clock = input.ReadUInt32LittleEndian(0x98);
+
+            // +9C: K051649 clock
+            if (0x9C + 4 > VgmDataOffset) return;
+            K051649Clock = input.ReadUInt32LittleEndian(0x9C);
+
+            // +A0: K054539 clock
+            if (0xA0 + 4 > VgmDataOffset) return;
+            K054539Clock = input.ReadUInt32LittleEndian(0xA0);
+
+            // +A4: HuC6280 clock
+            if (0xA4 + 4 > VgmDataOffset) return;
+            HuC6280Clock = input.ReadUInt32LittleEndian(0xA4);
+
+            // +A8: C140 clock
+            if (0xA8 + 4 > VgmDataOffset) return;
+            C140Clock = input.ReadUInt32LittleEndian(0xA8);
+
+            // +AC: K053260 clock
+            if (0xAC + 4 > VgmDataOffset) return;
+            K053260Clock = input.ReadUInt32LittleEndian(0xAC);
+
+            // +B0: Pokey clock
+            if (0xB0 + 4 > VgmDataOffset) return;
+            PokeyClock = input.ReadUInt32LittleEndian(0xB0);
+
+            // +B4: QSound clock
+            if (0xB4 + 4 > VgmDataOffset) return;
+            QsoundClock = input.ReadUInt32LittleEndian(0xB4);
+
+            // +B8: SCSP clock
+            if (0xB8 + 4 > VgmDataOffset) return;
+            ScspClock = input.ReadUInt32LittleEndian(0xB8);
+
+            // +BC: extra header offset
+            if (0xBC + 4 > VgmDataOffset) return;
+            ExtraHeaderOffset = input.ReadUInt32LittleEndian(0xBC);
+
+            // +C0: WonderSwan clock
+            if (0xC0 + 4 > VgmDataOffset) return;
+            WonderSwanClock = input.ReadUInt32LittleEndian(0xC0);
+
+            // +C4: VSU clock
+            if (0xC4 + 4 > VgmDataOffset) return;
+            VsuClock = input.ReadUInt32LittleEndian(0xC4);
+
+            // +C8: SAA1099 clock
+            if (0xC8 + 4 > VgmDataOffset) return;
+            Saa1099Clock = input.ReadUInt32LittleEndian(0xC8);
+
+            // +CC: ES5503 clock
+            if (0xCC + 4 > VgmDataOffset) return;
+            Es5503Clock = input.ReadUInt32LittleEndian(0xCC);
+
+            // +D0: ES5505/ES5506 clock
+            if (0xD0 + 4 > VgmDataOffset) return;
+            Es5505Es5506Clock = input.ReadUInt32LittleEndian(0xD0);
+
+            // +D4: ES5503 output channels / ES5505/ES5506 amount of output channels / C352 clock divider
+            if (0xD4 + 4 > VgmDataOffset) return;
+            Es5503Channels = input[0xD4];
+            Es5505Es5506Channels = input[0xD5];
+            C352ClockDivider = input[0xD6];
+
+            // +D8: X1-010 clock
+            if (0xD8 + 4 > VgmDataOffset) return;
+            X1010Clock = input.ReadUInt32LittleEndian(0xD8);
+
+            // +DC: C352 clock
+            if (0xDC + 4 > VgmDataOffset) return;
+            C352Clock = input.ReadUInt32LittleEndian(0xDC);
+
+            // +E0: GA20 clock
+            if (0xE0 + 4 > VgmDataOffset) return;
+            Ga20Clock = input.ReadUInt32LittleEndian(0xE0);
+        }
     }
 }
