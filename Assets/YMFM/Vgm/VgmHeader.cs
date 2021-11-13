@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using JetBrains.Annotations;
 using Sirenix.OdinInspector;
+using Sirenix.Utilities;
+using UnityEditor;
+using UnityEngine;
 
 namespace Ymfm.Vgm
 {
@@ -13,22 +15,33 @@ namespace Ymfm.Vgm
         public const uint MagicNumber = 0x20_6d_67_56;
         public const uint MaxVersion = 0x171;
 
-        public uint Magic;
+        [SerializeField]
+        [CustomValueDrawer("HexLabelDrawer")]
+        private uint _magic;
 
+        public uint Magic => _magic;
 
         /// <summary>
         /// Relative offset to end of file (i.e. file length - 4). This is mainly used to find the next track when
         /// concatenating player stubs and multiple files. 
         /// </summary>
         //[FieldOffset(0x04)]
-        public uint EndOfFileOffset;
+        [SerializeField]
+        [CustomValueDrawer("LengthDrawer")]
+        private uint _endOfFileOffset;
+
+        public uint EndOfFileOffset => _endOfFileOffset;
 
         /// <summary>
         /// Version number in BCD-Code. e.g. Version 1.70 is stored as <c>0x00000171</c>. This is used for backwards
         /// compatibility in players, and defines which header values are valid. 
         /// </summary>
         //[FieldOffset(0x08)]
-        public uint Version;
+        [CustomValueDrawer("HexLabelDrawer")]
+        [SerializeField]
+        private uint _version;
+
+        public uint Version => _version;
 
         /// <summary>
         /// <para>
@@ -43,7 +56,6 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0x0C)]
-        [SuffixLabel("Hz")]
         public uint Sn76489Clock;
 
         /// <summary>
@@ -51,7 +63,6 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no YM2413 chip used. 
         /// </summary>
         //[FieldOffset(0x10)]
-        [SuffixLabel("Hz")]
         public uint Ym2413Clock;
 
         /// <summary>
@@ -59,8 +70,11 @@ namespace Ymfm.Vgm
         /// files. See the GD3 specification for more details. The GD3 tag is usually stored immediately after the VGM data. 
         /// </summary>
         //[FieldOffset(0x14)]
-        [SuffixLabel("Hz")]
-        public uint Gd3Offset;
+        [SerializeField]
+        [CustomValueDrawer("LengthDrawer")]
+        private uint _gd3Offset;
+
+        public uint Gd3Offset => _gd3Offset;
 
         /// <summary>
         /// Total of all wait values in the file. 
@@ -74,7 +88,11 @@ namespace Ymfm.Vgm
         /// would contain the value <c>0x4000 - 0x1C = 0x00003FE4</c>. 
         /// </summary>
         //[FieldOffset(0x1C)]
-        public uint LoopOffset;
+        [SerializeField]
+        [CustomValueDrawer("LengthDrawer")]
+        private uint _loopOffset;
+
+        public uint LoopOffset => _loopOffset;
 
 
         /// <summary>
@@ -92,7 +110,6 @@ namespace Ymfm.Vgm
         /// its music engine for the system's speed. VGM 1.00 files will have a value of 0. 
         /// </summary>
         //[FieldOffset(0x24)]
-        [SuffixLabel("Hz")]
         public uint Rate;
 
         #endregion
@@ -149,7 +166,6 @@ namespace Ymfm.Vgm
         /// For version 1.01 and earlier files, the shift register width should be assumed to be 16. If the PSG is not used then this may be omitted (left at zero). 
         /// </summary>
         //[FieldOffset(0x2A)]
-        [SuffixLabel("bits")]
         public byte Sn76489ShiftRegisterWidth;
 
         #endregion
@@ -226,7 +242,6 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0x2C)]
-        [SuffixLabel("Hz")]
         public uint Ym2612Clock;
 
 
@@ -242,7 +257,6 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0x30)]
-        [SuffixLabel("Hz")]
         public uint Ym2151Clock;
 
         #endregion
@@ -259,7 +273,11 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0x34)]
-        public uint VgmDataOffset;
+        [SerializeField]
+        [CustomValueDrawer("LengthDrawer")]
+        private uint _vgmDataOffset;
+
+        public uint VgmDataOffset => _vgmDataOffset;
 
         #endregion
 
@@ -995,14 +1013,14 @@ namespace Ymfm.Vgm
             }
 
             // +00: check the magic ID 
-            Magic = 0;
-            EndOfFileOffset = 0;
-            Version = 0;
+            _magic = 0;
+            _endOfFileOffset = 0;
+            _version = 0;
             Sn76489Clock = 0;
             Ym2413Clock = 0;
-            Gd3Offset = 0;
+            _gd3Offset = 0;
             TotalNumSamples = 0;
-            LoopOffset = 0;
+            _loopOffset = 0;
             LoopNumSamples = 0;
             Rate = 0;
             Sn76489Feedback = 0;
@@ -1010,7 +1028,7 @@ namespace Ymfm.Vgm
             Sn76489Flags = 0;
             Ym2612Clock = 0;
             Ym2151Clock = 0;
-            VgmDataOffset = 0;
+            _vgmDataOffset = 0;
             SegaPcmClock = 0;
             SegaPcmInterfaceRegister = 0;
             Rf5c68Clock = 0;
@@ -1071,7 +1089,7 @@ namespace Ymfm.Vgm
         private void InitializeHeader(ReadOnlySpan<byte> input)
         {
             // +00: check the magic ID 
-            this.Magic = input.ReadUInt32LittleEndian(0x00);
+            _magic = input.ReadUInt32LittleEndian(0x00);
 
             if (Magic != MagicNumber)
             { // Not a valid VGM file
@@ -1080,10 +1098,10 @@ namespace Ymfm.Vgm
             }
 
             // +04: parse the size
-            EndOfFileOffset = input.ReadUInt32LittleEndian(0x04);
+            _endOfFileOffset = input.ReadUInt32LittleEndian(0x04);
 
             // +08: parse the version
-            Version = input.ReadUInt32LittleEndian(0x08);
+            _version = input.ReadUInt32LittleEndian(0x08);
 
             // +0C: SN76489 clock
             Sn76489Clock = input.ReadUInt32LittleEndian(0x0C);
@@ -1092,13 +1110,13 @@ namespace Ymfm.Vgm
             Ym2413Clock = input.ReadUInt32LittleEndian(0x10);
 
             // +14: GD3 offset
-            Gd3Offset = input.ReadUInt32LittleEndian(0x14);
+            _gd3Offset = input.ReadUInt32LittleEndian(0x14);
 
             // +18: Total # samples
             TotalNumSamples = input.ReadUInt32LittleEndian(0x18);
 
             // +1C: Loop offset
-            LoopOffset = input.ReadUInt32LittleEndian(0x1C);
+            _loopOffset = input.ReadUInt32LittleEndian(0x1C);
 
             // +20: Loop # samples
             LoopNumSamples = input.ReadUInt32LittleEndian(0x20);
@@ -1122,11 +1140,11 @@ namespace Ymfm.Vgm
             Ym2151Clock = input.ReadUInt32LittleEndian(0x30);
 
             // +34: VGM data offset
-            VgmDataOffset = input.ReadUInt32LittleEndian(0x34);
-            VgmDataOffset += 0x34U;
+            _vgmDataOffset = input.ReadUInt32LittleEndian(0x34);
+            _vgmDataOffset += 0x34U;
             if (Version < 0x150)
             {
-                VgmDataOffset = 0x40;
+                _vgmDataOffset = 0x40;
             }
 
             // +38: Sega PCM clock
@@ -1319,5 +1337,22 @@ namespace Ymfm.Vgm
             if (0xE0 + 4 > VgmDataOffset) return;
             Ga20Clock = input.ReadUInt32LittleEndian(0xE0);
         }
+
+#if UNITY_EDITOR
+        private static uint HexLabelDrawer(uint value, GUIContent label)
+        {
+            EditorGUILayout.LabelField(label.ToString(), $"0x{value:x8}");
+            return value;
+        }
+
+        private static uint LengthDrawer(uint value, GUIContent label)
+        {
+            EditorGUILayout.LabelField(
+                label.ToString(),
+                $"{value:N0} B == {StringUtilities.NicifyByteSize((int)value)} (0x{value:x8})"
+            );
+            return value;
+        }
+#endif
     }
 }

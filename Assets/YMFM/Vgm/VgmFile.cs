@@ -1,11 +1,10 @@
 ﻿using System;
-using System.Buffers;
-using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Sirenix.OdinInspector;
 using UnityEngine;
+using UnityEngine.Assertions;
 
 #if UNITY_EDITOR
 using Sirenix.Utilities.Editor;
@@ -23,6 +22,13 @@ namespace Ymfm.Vgm
         [SerializeField]
         private VgmHeader _header;
 
+        [SerializeField]
+        private Gd3Tags _tags;
+
+        public Gd3Tags Tags => _tags;
+
+        public ref VgmHeader Header => ref _header;
+
         public ReadOnlySpan<byte> Data => _data;
 
 
@@ -31,11 +37,17 @@ namespace Ymfm.Vgm
             var vgm = CreateInstance<VgmFile>();
 
             vgm._data = data.ToArray();
-            vgm._header = new VgmHeader(data);
+            vgm.Populate();
 
             return vgm;
         }
 
+        /// <summary>
+        /// Creates a VgmFile by using the referenced data
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static VgmFile CreateInstance(byte[] data)
         {
             if (data == null)
@@ -46,11 +58,41 @@ namespace Ymfm.Vgm
             var vgm = CreateInstance<VgmFile>();
 
             vgm._data = data;
-            vgm._header = new VgmHeader(data);
+            vgm.Populate();
 
             return vgm;
         }
 
+        private void Populate()
+        {
+            Assert.IsNotNull(_data);
+            _header = new VgmHeader(_data);
+
+            var tagOffset = _header.Gd3Offset;
+            if (tagOffset != 0)
+            { // If this song has GD3 tags...
+                var span = new ReadOnlySpan<byte>(_data);
+                _tags = new Gd3Tags(span[(int)(tagOffset + 0x14)..]);
+            }
+        }
+
+
+        public AudioClip GetAudioClip()
+        {
+            var clip = AudioClip.Create("", 0, 0, 0, true, OnReadData, OnPositionSet);
+            return clip;
+        }
+
+        private void OnReadData(float[] data)
+        {
+            // TODO: Call VgmChip.Generate()
+            // TODO: The hard part will be looping (although if onpositionset is called a lot, i could use modulo or something)
+        }
+
+        private void OnPositionSet(int position)
+        {
+            // TODO: set VgmChip.OututPosition to position
+        }
 
 #if UNITY_EDITOR
         [OnInspectorGUI]
@@ -66,6 +108,33 @@ namespace Ymfm.Vgm
             }
 
             _warnings.Clear().AppendLine("Encountered the following potential problems:\n");
+            var foundWarnings = AddCommonWarnings();
+
+            if (_header.Version >= 0x151)
+            {
+                foundWarnings = AddVersion151Warnings(foundWarnings);
+            }
+
+            if (_header.Version >= 0x161)
+            {
+                foundWarnings = AddVersion161Warnings(foundWarnings);
+            }
+
+            if (_header.Version >= 0x171)
+            {
+                foundWarnings = AddVersion171Warnings(foundWarnings);
+            }
+
+            if (foundWarnings)
+            {
+                SirenixEditorGUI.WarningMessageBox(_warnings.ToString());
+            }
+
+            _warnings.Clear();
+        }
+
+        private bool AddCommonWarnings()
+        {
             var foundWarnings = false;
             if (0x04 - 4 + _header.EndOfFileOffset > _data.Length)
             {
@@ -97,27 +166,7 @@ namespace Ymfm.Vgm
                 );
             }
 
-            if (_header.Version >= 0x151)
-            {
-                foundWarnings = AddVersion151Warnings(foundWarnings);
-            }
-
-            if (_header.Version >= 0x161)
-            {
-                foundWarnings = AddVersion161Warnings(foundWarnings);
-            }
-
-            if (_header.Version >= 0x171)
-            {
-                foundWarnings = AddVersion171Warnings(foundWarnings);
-            }
-
-            if (foundWarnings)
-            {
-                SirenixEditorGUI.WarningMessageBox(_warnings.ToString());
-            }
-
-            _warnings.Clear();
+            return foundWarnings;
         }
 
         private bool AddVersion151Warnings(bool foundWarnings)
