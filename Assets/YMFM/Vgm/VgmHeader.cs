@@ -611,7 +611,11 @@ namespace Ymfm.Vgm
         /// Default is 0, which is equal to 0x10. 
         /// </summary>
         //[FieldOffset(0x7F)]
-        public byte LoopModifier;
+        [SerializeField]
+        [ShowIf("@_version >= Version151")]
+        private byte _loopModifier;
+        
+        public byte LoopModifier => _loopModifier;
 
         #endregion
 
@@ -626,7 +630,11 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0x80)]
-        public uint GameBoyDmgClock;
+        [SerializeField]
+        [ShowIf("@_version >= Version161")]
+        private uint _gameBoyDmgClock;
+
+        public uint GameBoyDmgClock => _gameBoyDmgClock;
 
         /// <summary>
         /// <para>
@@ -640,6 +648,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0x84)]
+        [ShowIf("@_version >= Version161")]
         public uint NesApuClock;
 
         /// <summary>
@@ -651,6 +660,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0x88)]
+        [ShowIf("@_version >= Version161")]
         public uint MultiPcmClock;
 
         /// <summary>
@@ -662,6 +672,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0x8C)]
+        [ShowIf("@_version >= Version161")]
         public uint Upd7759Clock;
 
         /// <summary>
@@ -673,6 +684,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0x90)]
+        [ShowIf("@_version >= Version161")]
         public uint Okim6258Clock;
 
         /// <summary>
@@ -702,6 +714,7 @@ namespace Ymfm.Vgm
         /// If the OKIM6258 is not used then this may be omitted (left at zero).
         /// </summary>
         //[FieldOffset(0x94)]
+        [ShowIf("@_version >= Version161")]
         public byte Okim6258Flags;
 
         /// <summary>
@@ -731,6 +744,7 @@ namespace Ymfm.Vgm
         /// If the K054539 is not used then this may be omitted (left at zero).
         /// </summary>
         //[FieldOffset(0x95)]
+        [ShowIf("@_version >= Version161")]
         public byte K054539Flags;
 
         /// <summary>
@@ -756,6 +770,7 @@ namespace Ymfm.Vgm
         /// If the C140 is not used then this may be omitted (left at zero).
         /// </summary>
         //[FieldOffset(0x96)]
+        [ShowIf("@_version >= Version161")]
         public byte C140ChipType;
 
         /// <summary>
@@ -767,6 +782,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0x98)]
+        [ShowIf("@_version >= Version161")]
         public uint Okim6295Clock;
 
         /// <summary>
@@ -778,6 +794,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0x9C)]
+        [ShowIf("@_version >= Version161")]
         public uint K051649Clock;
 
         /// <summary>
@@ -789,6 +806,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0xA0)]
+        [ShowIf("@_version >= Version161")]
         public uint K054539Clock;
 
         /// <summary>
@@ -800,6 +818,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0xA4)]
+        [ShowIf("@_version >= Version161")]
         public uint HuC6280Clock;
 
         /// <summary>
@@ -811,6 +830,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0xA8)]
+        [ShowIf("@_version >= Version161")]
         public uint C140Clock;
 
         /// <summary>
@@ -822,6 +842,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0xAC)]
+        [ShowIf("@_version >= Version161")]
         public uint K053260Clock;
 
         /// <summary>
@@ -833,6 +854,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0xB0)]
+        [ShowIf("@_version >= Version161")]
         public uint PokeyClock;
 
         /// <summary>
@@ -844,6 +866,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0xB4)]
+        [ShowIf("@_version >= Version161")]
         public uint QsoundClock;
 
         #endregion
@@ -859,6 +882,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0xB8)]
+        [ShowIf("@_version >= Version171")]
         public uint ScspClock;
 
         #endregion
@@ -869,6 +893,7 @@ namespace Ymfm.Vgm
         /// Relative offset to the extra header or 0 if no extra header is present.
         /// </summary>
         //[FieldOffset(0xBC)]
+        [ShowIf("@_version >= Version170")]
         public uint ExtraHeaderOffset;
 
         #endregion
@@ -884,6 +909,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0xC0)]
+        [ShowIf("@_version >= Version171")]
         public uint WonderSwanClock;
 
         /// <summary>
@@ -895,6 +921,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0xC4)]
+        [ShowIf("@_version >= Version171")]
         public uint VsuClock;
 
         /// <summary>
@@ -906,6 +933,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0xC8)]
+        [ShowIf("@_version >= Version171")]
         public uint Saa1099Clock;
 
         /// <summary>
@@ -917,6 +945,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0xCC)]
+        [ShowIf("@_version >= Version171")]
         public uint Es5503Clock;
 
         /// <summary>
@@ -932,6 +961,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0xD0)]
+        [ShowIf("@_version >= Version171")]
         public uint Es5505Es5506Clock;
 
         /// <summary>
@@ -946,6 +976,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0xD4)]
+        [ShowIf("@_version >= Version171")]
         public byte Es5503Channels;
 
         /// <summary>
@@ -960,6 +991,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0xD5)]
+        [ShowIf("@_version >= Version171")]
         public byte Es5505Es5506Channels;
 
         /// <summary>
@@ -972,6 +1004,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0xD6)]
+        [ShowIf("@_version >= Version171")]
         public byte C352ClockDivider;
 
         /// <summary>
@@ -983,6 +1016,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0xD8)]
+        [ShowIf("@_version >= Version171")]
         public uint X1010Clock;
 
         /// <summary>
@@ -993,6 +1027,7 @@ namespace Ymfm.Vgm
         /// It should be 0 if there is no C352 chip used.
         /// </para>
         /// </summary>
+        [ShowIf("@_version >= Version171")]
         //[FieldOffset(0xDC)]
         public uint C352Clock;
 
@@ -1005,6 +1040,7 @@ namespace Ymfm.Vgm
         /// </para>
         /// </summary>
         //[FieldOffset(0xE0)]
+        [ShowIf("@_version >= Version171")]
         public uint Ga20Clock;
 
         #endregion
@@ -1058,8 +1094,8 @@ namespace Ymfm.Vgm
             Ym2608Ay8910Flags = 0;
             VolumeModifier = 0;
             LoopBase = 0;
-            LoopModifier = 0;
-            GameBoyDmgClock = 0;
+            _loopModifier = 0;
+            _gameBoyDmgClock = 0;
             NesApuClock = 0;
             MultiPcmClock = 0;
             Upd7759Clock = 0;
@@ -1238,11 +1274,11 @@ namespace Ymfm.Vgm
             LoopBase = input[0x7E];
 
             // +7F: Loop modifier
-            LoopModifier = input[0x7F];
+            _loopModifier = input[0x7F];
 
             // +80: GameBoy DMG clock
             if (0x80 + 4 > VgmDataOffset) return;
-            GameBoyDmgClock = input.ReadUInt32LittleEndian(0x80);
+            _gameBoyDmgClock = input.ReadUInt32LittleEndian(0x80);
 
             // +84: NES APU clock
             if (0x84 + 4 > VgmDataOffset) return;
