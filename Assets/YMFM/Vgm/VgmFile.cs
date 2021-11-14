@@ -153,7 +153,7 @@ namespace Ymfm.Vgm
                 _warnings.AppendFormat(
                     "- File version 0x{0:x4} is greater than 0x{1:x4}, some things may not work\n",
                     _header.Version,
-                    VgmHeader.MaxVersion
+                    VgmHeader.Version171
                 );
             }
 
