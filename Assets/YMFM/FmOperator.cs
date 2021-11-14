@@ -184,7 +184,7 @@ namespace Ymfm
         //  when a keyon happens or when an SSG-EG cycle
         //  is complete and restarts
         //-------------------------------------------------
-        private unsafe void StartAttack(bool isRestart = false)
+        private void StartAttack(bool isRestart = false)
         {
             // don't change anything if already in attack state
             if (_envelopeState == EnvelopeState.Attack)
