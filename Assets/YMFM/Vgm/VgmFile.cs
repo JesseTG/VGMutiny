@@ -22,7 +22,7 @@ namespace Ymfm.Vgm
         [SerializeField]
         private VgmHeader _header;
 
-        [SerializeField]
+        [SerializeField, HideIf("@_header.Gd3Offset == 0")]
         private Gd3Tags _tags;
 
         public Gd3Tags Tags => _tags;

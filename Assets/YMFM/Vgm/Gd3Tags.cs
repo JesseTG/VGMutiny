@@ -199,7 +199,7 @@ namespace Ymfm
         [OnInspectorGUI]
         private void OnInspectorGUI()
         {
-            if (Magic is not 0 and not MagicNumber)
+            if (Magic != MagicNumber)
             {
                 SirenixEditorGUI.ErrorMessageBox(
                     $"Expected a GD3 section with a magic number of 0x{MagicNumber:x8}, found 0x{Magic:x8}. Section is invalid."
