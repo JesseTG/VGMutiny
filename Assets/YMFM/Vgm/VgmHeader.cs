@@ -13,7 +13,14 @@ namespace Ymfm.Vgm
     public struct VgmHeader
     {
         public const uint MagicNumber = 0x20_6d_67_56;
-        public const uint MaxVersion = 0x171;
+        public const uint Version101 = 0x101;
+        public const uint Version110 = 0x110;
+        public const uint Version150 = 0x150;
+        public const uint Version151 = 0x151;
+        public const uint Version160 = 0x160;
+        public const uint Version161 = 0x161;
+        public const uint Version170 = 0x170;
+        public const uint Version171 = 0x171;
 
         [SerializeField]
         [CustomValueDrawer("HexLabelDrawer")]
