@@ -539,7 +539,9 @@ namespace Ymfm.Opm
             return Utils.Bitfield(m_regdata.Data[(int)(offset + extraOffset)], (int)start, (int)count);
         }
 
-        // return a bitfield extracted from a pair of bytes, MSBs listed first
+        /// <summary>
+        /// return a bitfield extracted from a pair of bytes, MSBs listed first
+        /// </summary>
         [Pure, MethodImpl(MethodImplOptions.AggressiveInlining)]
         private uint word(
             uint offset1,

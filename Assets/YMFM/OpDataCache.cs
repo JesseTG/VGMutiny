@@ -2,24 +2,34 @@
 
 namespace Ymfm
 {
-    // this class holds data that is computed once at the start of clocking
-    // and remains static during subsequent sound generation
+    /// <summary>
+    /// Holds data that is computed once at the start of clocking  and remains
+    /// static during subsequent sound generation.
+    /// </summary>
     public unsafe struct OpDataCache
     {
         // set phase_step to this value to recalculate it each sample; needed
         // in the case of PM LFO changes
         public const uint PhaseStepDynamic = 1;
 
-        // base of sine table
+        /// <summary>
+        /// base of sine table
+        /// </summary>
         public ReadOnlyMemory<ushort> Waveform;
 
-        // phase step, or PHASE_STEP_DYNAMIC if PM is active
+        /// <summary>
+        /// phase step, or <see cref="PhaseStepDynamic"/> if PM is active
+        /// </summary>
         public uint PhaseStep;
 
-        // total level * 8 + KSL
+        /// <summary>
+        /// total level * 8 + KSL
+        /// </summary>
         public uint TotalLevel;
 
-        // raw block frequency value (used to compute phase_step)
+        /// <summary>
+        /// raw block frequency value (used to compute phase_step)
+        /// </summary>
         public uint BlockFreq;
 
         // detuning value (used to compute phase_step)
@@ -31,9 +41,11 @@ namespace Ymfm
         // sustain level, shifted up to envelope values
         public uint EgSustain;
 
-        // envelope rate, including KSR
         private fixed byte _egRate[(int)EnvelopeState.States];
 
+        /// <summary>
+        /// envelope rate, including KSR
+        /// </summary>
         public readonly Span<byte> EgRate
         {
             get

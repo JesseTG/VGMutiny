@@ -5,8 +5,13 @@ using UnityEngine;
 
 namespace Ymfm
 {
-    // fm_operator represents an FM operator (or "slot" in FM parlance), which
-    // produces an output sine wave modulated by an envelope
+    /// <summary>
+    /// Represents an FM operator (or "slot" in FM parlance), which produces an
+    /// output sine wave modulated by an envelope
+    /// </summary>
+    /// <typeparam name="TRegisterType"></typeparam>
+    /// <typeparam name="TOutputType"></typeparam>
+    /// <typeparam name="TOperatorMapping"></typeparam>
     public sealed class FmOperator<TRegisterType, TOutputType, TOperatorMapping>
         where TRegisterType : class, IFmRegisters<TOperatorMapping>, new()
         where TOutputType : struct, IOutput
