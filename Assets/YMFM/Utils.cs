@@ -28,7 +28,7 @@ namespace Ymfm
         {
             return ((value >> bit) & ((1u << 1) - 1)) != 0;
         }
-        
+
         //-------------------------------------------------
         //  roundtrip_fp - compute the result of a round
         //  trip through the encode/decode process above
