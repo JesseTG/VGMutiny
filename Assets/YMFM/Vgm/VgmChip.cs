@@ -7,9 +7,7 @@ namespace Ymfm.Vgm
 {
     // actual chip-specific implementation class; includes implementation of the
     // ymfm_interface as needed for vgmplay purposes
-    public class VgmChip<TChip, TOutput> : BaseVgmChip, IYmfmInterface
-        where TChip : IChip<TOutput>
-        where TOutput : unmanaged, IOutput
+    public class VgmChip<TChip> : BaseVgmChip, IYmfmInterface where TChip : IChip
     {
         // internal state
         private readonly ChipType _type;
@@ -60,7 +58,7 @@ namespace Ymfm.Vgm
         // generate one output sample of output
         public override void Generate(long outputStart, long outputStep, Span<int> outputBuffer)
         {
-            TOutput output = new();
+            Span<int> output = stackalloc int[(int)_chip.Outputs];
             var addr1 = 0xffffu;
             var addr2 = 0xffffu;
             byte data1 = 0;
@@ -86,7 +84,7 @@ namespace Ymfm.Vgm
             // generate at the appropriate sample rate
             for (; _pos <= outputStart; _pos += _step)
             {
-                _chip.Generate(ref output);
+                _chip.Generate(output);
             }
 
             // add the final result to the buffer

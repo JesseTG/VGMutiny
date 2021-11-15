@@ -10,10 +10,7 @@ namespace Ymfm
     /// output sine wave modulated by an envelope
     /// </summary>
     /// <typeparam name="TRegisterType"></typeparam>
-    /// <typeparam name="TOperatorMapping"></typeparam>
-    public sealed class FmOperator<TRegisterType, TOperatorMapping>
-        where TRegisterType : class, IFmRegisters<TOperatorMapping>, new()
-        where TOperatorMapping : struct, IOperatorMapping
+    public sealed class FmOperator<TRegisterType> where TRegisterType : class, IFmRegisters, new()
     {
         /// <summary>
         /// "quiet" value, used to optimize when we can skip doing working
@@ -36,7 +33,7 @@ namespace Ymfm
         private OpDataCache _cache; // cached values for performance
 
         // constructor
-        public FmOperator(TRegisterType registers, uint operatorOffset)
+        internal FmOperator(TRegisterType registers, uint operatorOffset)
         {
             Registers = registers ?? throw new ArgumentNullException(nameof(registers));
             ChannelOffset = 0;
@@ -47,6 +44,10 @@ namespace Ymfm
             _ssgInverted = 0;
             _keyState = false;
             _keyOnLive = 0;
+            _cache = new OpDataCache
+            {
+                EgRate = new byte[(int)EnvelopeState.States],
+            };
         }
 
         // save/restore
@@ -90,7 +91,7 @@ namespace Ymfm
 
             // clock the key state
             ClockKeyState(_keyOnLive != 0);
-            _keyOnLive &= unchecked((byte)~(1 << (int)KeyOnType.Csm));
+            _keyOnLive &= 0b11111011; // unchecked((byte)~(1 << (int)KeyOnType.Csm));
 
             // we're active until we're quiet after the release
             return (_envelopeState != (Registers.EgHasReverb ? EnvelopeState.Reverb : EnvelopeState.Release) ||
@@ -430,7 +431,7 @@ namespace Ymfm
             var phaseStep = _cache.PhaseStep;
             if (phaseStep == OpDataCache.PhaseStepDynamic)
             {
-                phaseStep = Registers.ComputePhaseStep(ChannelOffset, OperatorOffset, _cache, lfoRawPm);
+                phaseStep = Registers.ComputePhaseStep(ChannelOffset, OperatorOffset, ref _cache, lfoRawPm);
             }
 
             // finally apply the step to the current phase value

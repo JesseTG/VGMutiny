@@ -11,14 +11,14 @@
         //    carrier 1, modulator 1, carrier 2, modulator 2
         private static readonly uint[] FixedMap =
         {
-            IFmRegisters<OpmOperatorMapping>.OperatorList(0,16,8,24), // Channel 0 operators
-            IFmRegisters<OpmOperatorMapping>.OperatorList(1,17,9,25), // Channel 1 operators
-            IFmRegisters<OpmOperatorMapping>.OperatorList(2,18,10,26), // Channel 2 operators
-            IFmRegisters<OpmOperatorMapping>.OperatorList(3,19,11,27), // Channel 3 operators
-            IFmRegisters<OpmOperatorMapping>.OperatorList(4,20,12,28), // Channel 4 operators
-            IFmRegisters<OpmOperatorMapping>.OperatorList(5,21,13,29), // Channel 5 operators
-            IFmRegisters<OpmOperatorMapping>.OperatorList(6,22,14,30), // Channel 6 operators
-            IFmRegisters<OpmOperatorMapping>.OperatorList(7,23,15,31), // Channel 7 operators
+            IFmRegisters.OperatorList(0,16,8,24), // Channel 0 operators
+            IFmRegisters.OperatorList(1,17,9,25), // Channel 1 operators
+            IFmRegisters.OperatorList(2,18,10,26), // Channel 2 operators
+            IFmRegisters.OperatorList(3,19,11,27), // Channel 3 operators
+            IFmRegisters.OperatorList(4,20,12,28), // Channel 4 operators
+            IFmRegisters.OperatorList(5,21,13,29), // Channel 5 operators
+            IFmRegisters.OperatorList(6,22,14,30), // Channel 6 operators
+            IFmRegisters.OperatorList(7,23,15,31), // Channel 7 operators
         };
 
         // start with coarse detune delta; table uses cents value from

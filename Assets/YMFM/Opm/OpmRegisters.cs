@@ -67,7 +67,7 @@ namespace Ymfm.Opm
     //     Internal (fake) registers:
     //           1A -xxxxxxx PM depth
     //
-    public sealed partial class OpmRegisters : IFmRegisters<OpmRegisters.OpmOperatorMapping>
+    public sealed partial class OpmRegisters : IFmRegisters
     {
         // LFO waveforms are 256 entries long
         public const uint LFO_WAVEFORM_LENGTH = 256;
@@ -99,7 +99,7 @@ namespace Ymfm.Opm
             _noiseState = 0;
             _noiseLfo = 0;
             _lfoAm = 0;
-            _registerData = default;
+            _registerData = new byte[REGISTERS];
             _lfoWaveform = new short[4, LFO_WAVEFORM_LENGTH];
             _waveform = new WaveformTable((int)(WAVEFORMS * WAVEFORM_LENGTH));
             // create the waveforms
@@ -134,11 +134,10 @@ namespace Ymfm.Opm
         // reset to initial state
         public void Reset()
         {
-            _registerData.Data.Fill(0);
+            Array.Fill<byte>(_registerData, 0);
 
             // enable output on both channels by default
-            _registerData.Data[0x20] = _registerData.Data[0x21] = _registerData.Data[0x22] = _registerData.Data[0x23] = 0xc0;
-            _registerData.Data[0x24] = _registerData.Data[0x25] = _registerData.Data[0x26] = _registerData.Data[0x27] = 0xc0;
+            Array.Fill<byte>(_registerData, 0xc0, 0x20, 8);
         }
 
         // save/restore
@@ -150,16 +149,16 @@ namespace Ymfm.Opm
             state.SaveRestore(ref _noiseCounter);
             state.SaveRestore(ref _noiseState);
             state.SaveRestore(ref _noiseLfo);
-            state.SaveRestore(_registerData.Data);
+            state.SaveRestore(_registerData);
         }
 
         //-------------------------------------------------
         //  operator_map - return an array of operator
         //  indices for each channel; for OPM this is fixed
         //-------------------------------------------------
-        public void OperatorMap(ref OpmOperatorMapping dest)
+        public void OperatorMap(Span<uint> dest)
         {
-            FixedMap.CopyTo(dest.OperatorIndexes);
+            FixedMap.CopyTo(dest);
         }
 
         //-------------------------------------------------
@@ -176,11 +175,11 @@ namespace Ymfm.Opm
             // redirect the PM depth to an unused neighbor (0x1a)
             if (index == 0x19)
             {
-                _registerData.Data[(int)(index + Utils.Bitfield(data, 7))] = data;
+                _registerData[(int)(index + Utils.Bitfield(data, 7))] = data;
             }
             else if (index != 0x1a)
             {
-                _registerData.Data[index] = data;
+                _registerData[index] = data;
             }
 
             // handle writes to the key on index
@@ -314,7 +313,7 @@ namespace Ymfm.Opm
             // block_freq, detune, and multiple, so compute it after we've done those
             if (LfoPmDepth == 0 || ChannelLfoPmSens(channelOffset) == 0)
             {
-                cache.PhaseStep = ComputePhaseStep(channelOffset, operatorOffset, cache, 0);
+                cache.PhaseStep = ComputePhaseStep(channelOffset, operatorOffset, ref cache, 0);
             }
             else
             {
@@ -332,19 +331,19 @@ namespace Ymfm.Opm
             // determine KSR adjustment for envelope rates
             var ksrVal = keycode >> (int)(OpKsr(operatorOffset) ^ 3);
             cache.EgRate[(int)EnvelopeState.Attack] =
-                (byte)IFmRegisters<OpmOperatorMapping>.EffectiveRate(OpAttackRate(operatorOffset) * 2, ksrVal);
+                (byte)IFmRegisters.EffectiveRate(OpAttackRate(operatorOffset) * 2, ksrVal);
             cache.EgRate[(int)EnvelopeState.Decay] =
-                (byte)IFmRegisters<OpmOperatorMapping>.EffectiveRate(OpDecayRate(operatorOffset) * 2, ksrVal);
+                (byte)IFmRegisters.EffectiveRate(OpDecayRate(operatorOffset) * 2, ksrVal);
             cache.EgRate[(int)EnvelopeState.Sustain] =
-                (byte)IFmRegisters<OpmOperatorMapping>.EffectiveRate(OpSustainRate(operatorOffset) * 2, ksrVal);
+                (byte)IFmRegisters.EffectiveRate(OpSustainRate(operatorOffset) * 2, ksrVal);
             cache.EgRate[(int)EnvelopeState.Release] =
-                (byte)IFmRegisters<OpmOperatorMapping>.EffectiveRate(OpReleaseRate(operatorOffset) * 4 + 2, ksrVal);
+                (byte)IFmRegisters.EffectiveRate(OpReleaseRate(operatorOffset) * 4 + 2, ksrVal);
         }
 
         //-------------------------------------------------
         //  compute_phase_step - compute the phase step
         //-------------------------------------------------
-        public uint ComputePhaseStep(uint channelOffset, uint operatorOffset, in OpDataCache cache, int lfoRawPm)
+        public uint ComputePhaseStep(uint channelOffset, uint operatorOffset, ref OpDataCache cache, int lfoRawPm)
         {
             // OPM logic is rather unique here, due to extra detune
             // and the use of key codes (not to be confused with keycode)
@@ -536,7 +535,7 @@ namespace Ymfm.Opm
         [Pure, MethodImpl(MethodImplOptions.AggressiveInlining)]
         private uint @byte(uint offset, uint start, uint count, uint extraOffset = 0)
         {
-            return Utils.Bitfield(_registerData.Data[(int)(offset + extraOffset)], (int)start, (int)count);
+            return Utils.Bitfield(_registerData[(int)(offset + extraOffset)], (int)start, (int)count);
         }
 
         /// <summary>
@@ -564,25 +563,9 @@ namespace Ymfm.Opm
         private byte _noiseState; // latched noise state
         private byte _noiseLfo; // latched LFO noise value
         private byte _lfoAm; // current LFO AM value
-        private readonly RegisterData _registerData; // register data
+        private readonly byte[] _registerData; // register data
         private readonly short[,] _lfoWaveform; // LFO waveforms; AM in low 8, PM in upper 8
         private readonly WaveformTable _waveform; // waveforms
-
-        private unsafe struct RegisterData
-        {
-            public readonly Span<byte> Data
-            {
-                get
-                {
-                    fixed (byte* d = _data)
-                    {
-                        return new Span<byte>(d, (int)REGISTERS);
-                    }
-                }
-            }
-
-            private fixed byte _data[(int)REGISTERS];
-        }
 
         private struct WaveformTable
         {
@@ -620,22 +603,6 @@ namespace Ymfm.Opm
                 if (y >= WAVEFORM_LENGTH)
                 {
                     throw new ArgumentOutOfRangeException(nameof(y), y, $"Expected 0 <=y < {WAVEFORM_LENGTH}, got {y}");
-                }
-            }
-        }
-
-        public unsafe struct OpmOperatorMapping : IOperatorMapping
-        {
-            private fixed uint _indexes[(int)CHANNELS];
-
-            public readonly Span<uint> OperatorIndexes
-            {
-                get
-                {
-                    fixed (uint* i = _indexes)
-                    {
-                        return new Span<uint>(i, (int)CHANNELS);
-                    }
                 }
             }
         }

@@ -6,85 +6,126 @@ using UnityEngine;
 
 namespace Ymfm
 {
-    using uint32_t = System.UInt32;
-    using uint8_t = System.Byte;
-
-    // base class for family-specific register classes; this provides a few
-    // constants, common defaults, and helpers, but mostly each derived class is
-    // responsible for defining all commonly-called methods
-    public interface IFmRegisters<TOperatorMapping> where TOperatorMapping : struct, IOperatorMapping
+    /// <summary>
+    /// Interface for family-specific register classes; this provides a few
+    /// constants, common defaults, and helpers, but mostly each derived class is
+    /// responsible for defining all commonly-called methods
+    /// </summary>
+    public interface IFmRegisters
     {
-        // this is the size of a full sin waveform
+        /// <summary>
+        /// This value is returned from <see cref="Write"/> for rhythm channels
+        /// </summary>
+        public virtual uint RhythmChannel => 0xff;
+
+        /// <summary>
+        /// this is the size of a full sin waveform
+        /// </summary>
         public virtual uint WaveformLength => 0x400;
 
-        //
-        // the following constants need to be defined per family:
-        //          uint32_t OUTPUTS: The number of outputs exposed (1-4)
-        public abstract uint Outputs { get; }
+        /// <summary>
+        /// The number of outputs exposed (1-4)
+        /// </summary>
+        public uint Outputs { get; }
 
-        //         uint32_t CHANNELS: The number of channels on the chip
-        public abstract uint Channels { get; }
+        /// <summary>
+        /// The number of channels on the chip
+        /// </summary>
+        public uint Channels { get; }
 
-        //     uint32_t ALL_CHANNELS: A bitmask of all channels
-        public abstract uint AllChannels { get; }
+        /// <summary>
+        /// A bitmask of all channels
+        /// </summary>
+        public uint AllChannels { get; }
 
-        //        uint32_t OPERATORS: The number of operators on the chip
-        public abstract uint Operators { get; }
+        /// <summary>
+        /// The number of operators on the chip
+        /// </summary>
+        public uint Operators { get; }
 
-        //        uint32_t WAVEFORMS: The number of waveforms offered
-        public abstract uint Waveforms { get; }
+        /// <summary>
+        /// The number of waveforms offered
+        /// </summary>
+        public uint Waveforms { get; }
 
-        //        uint32_t REGISTERS: The number of 8-bit registers allocated
-        public abstract uint Registers { get; }
+        /// <summary>
+        /// The number of 8-bit registers allocated
+        /// </summary>
+        public uint Registers { get; }
 
-        // uint32_t DEFAULT_PRESCALE: The starting clock prescale
-        public abstract uint DefaultPrescale { get; }
+        /// <summary>
+        /// The starting clock prescale
+        /// </summary>
+        public uint DefaultPrescale { get; }
 
-        // uint32_t EG_CLOCK_DIVIDER: The clock divider of the envelope generator
-        public abstract uint EgClockDivider { get; }
+        /// <summary>
+        /// The clock divider of the envelope generator
+        /// </summary>
+        public uint EgClockDivider { get; }
 
-        // uint32_t CSM_TRIGGER_MASK: Mask of channels to trigger in CSM mode
-        public abstract uint CsmTriggerMask { get; }
+        /// <summary>
+        /// Mask of channels to trigger in CSM mode
+        /// </summary>
+        public uint CsmTriggerMask { get; }
 
-        //         uint32_t REG_MODE: The address of the "mode" register controlling timers
-        public abstract uint RegisterMode { get; }
+        /// <summary>
+        /// The address of the "mode" register controlling timers
+        /// </summary>
+        public uint RegisterMode { get; }
 
-        //     uint8_t STATUS_TIMERA: Status bit to set when timer A fires
-        public abstract byte StatusTimerA { get; }
+        /// <summary>
+        /// Status bit to set when timer A fires
+        /// </summary>
+        public byte StatusTimerA { get; }
 
-        //     uint8_t STATUS_TIMERB: Status bit to set when tiemr B fires
-        public abstract byte StatusTimerB { get; }
+        /// <summary>
+        /// Status bit to set when timer B fires
+        /// </summary>
+        public byte StatusTimerB { get; }
 
-        //       uint8_t STATUS_BUSY: Status bit to set when the chip is busy
-        public abstract byte StatusBusy { get; }
+        /// <summary>
+        /// Status bit to set when the chip is busy
+        /// </summary>
+        public byte StatusBusy { get; }
 
-        //        uint8_t STATUS_IRQ: Status bit to set when an IRQ is signalled
-        public abstract byte StatusIrq { get; }
+        /// <summary>
+        /// Status bit to set when an IRQ is signalled
+        /// </summary>
+        public byte StatusIrq { get; }
 
-        //
-        // the following constants are uncommon:
-        //          bool DYNAMIC_OPS: True if ops/channel can be changed at runtime (OPL3+)
-        //       bool EG_HAS_DEPRESS: True if the chip has a DP ("depress"?) envelope stage (OPLL)
-        //        bool EG_HAS_REVERB: True if the chip has a faux reverb envelope stage (OPQ/OPZ)
-        //           bool EG_HAS_SSG: True if the chip has SSG envelope support (OPN)
-        //      bool MODULATOR_DELAY: True if the modulator is delayed by 1 sample (OPL pre-OPL3)
-        //
+
+        // the following constants are uncommon
+        /// <summary>
+        /// True if ops/channel can be changed at runtime (OPL3+)
+        /// </summary>
         public virtual bool DynamicOps => false;
-        public virtual bool EgHasDepress => false;
-        public virtual bool EgHasReverb => false;
-        public virtual bool EgHasSsg => false;
-        public virtual bool ModulatorDelay => false;
 
-        // this value is returned from the write() function for rhythm channels
-        public virtual uint RhythmChannel => 0xff;
+        /// <summary>
+        /// True if the chip has a DP ("depress"?) envelope stage (OPLL)
+        /// </summary>
+        public virtual bool EgHasDepress => false;
+
+        /// <summary>
+        /// True if the chip has a faux reverb envelope stage (OPQ/OPZ)
+        /// </summary>
+        public virtual bool EgHasReverb => false;
+
+        /// <summary>
+        /// True if the chip has SSG envelope support (OPN)
+        /// </summary>
+        public virtual bool EgHasSsg => false;
+
+        /// <summary>
+        /// True if the modulator is delayed by 1 sample (OPL pre-OPL3)
+        /// </summary>
+        public virtual bool ModulatorDelay => false;
 
 
         // system-wide register defaults
         public virtual uint StatusMask => 0; // OPL only
-
         public virtual uint IrqReset => 0; // OPL only
-
         public virtual uint NoiseEnable => 0; // OPM only
+        public virtual uint RhythmEnable => 0; // OPL only
         public virtual uint NoiseState => 0;
         public uint EnableTimerA { get; }
         public uint EnableTimerB { get; }
@@ -95,20 +136,18 @@ namespace Ymfm
         public uint TimerAValue { get; }
         public uint TimerBValue { get; }
         public uint Csm { get; }
-        public virtual uint RhythmEnable => 0; // OPL only
 
         // per-operator register defaults
         public virtual uint OpSsgEgEnable(uint opoffs) => 0; // OPN(A) only
-
         public virtual uint OpSsgEgMode(uint opoffs) => 0; // OPN(A) only
 
-        public void OperatorMap(ref TOperatorMapping dest);
+        public void OperatorMap(Span<uint> dest);
 
         // caching helpers
         public void CacheOperatorData(uint channelOffset, uint operatorOffset, ref OpDataCache cache);
         // compute the phase step, given a PM value
 
-        public uint ComputePhaseStep(uint channelOffset, uint operatorOffset, in OpDataCache cache, int lfoRawPm);
+        public uint ComputePhaseStep(uint channelOffset, uint operatorOffset, ref OpDataCache cache, int lfoRawPm);
 
         // log a key-on event
         public string LogKeyOn(uint channelOffset, uint operatorOffset);

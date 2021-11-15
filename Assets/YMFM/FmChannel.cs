@@ -9,11 +9,13 @@ namespace Ymfm
     /// Represents an FM channel which combines the output of 2 or 4 operators
     /// into a final result
     /// </summary>
-    public sealed class FmChannel<TRegisterType, TOutputType, TOperatorMapping>
-        where TRegisterType : class, IFmRegisters<TOperatorMapping>, new()
-        where TOutputType : unmanaged, IOutput
-        where TOperatorMapping : struct, IOperatorMapping
+    public sealed class FmChannel<TRegisterType> where TRegisterType : class, IFmRegisters, new()
     {
+        // internal state
+        private readonly short[] _feedbackMemory; // feedback memory for operator 1
+        private short _feedbackInput; // next input value for op 1 feedback (set in output)
+        private readonly FmOperator<TRegisterType>[] _operators; // up to 4 operators
+
         // constructor
         public FmChannel(TRegisterType registers, uint channelOffset)
         {
@@ -21,7 +23,7 @@ namespace Ymfm
             ChannelOffset = channelOffset;
             _feedbackMemory = new short[] { 0, 0 };
             _feedbackInput = 0;
-            _operators = new FmOperator<TRegisterType, TOperatorMapping>[] { null, null, null, null };
+            _operators = new FmOperator<TRegisterType>[] { null, null, null, null };
         }
 
         //-------------------------------------------------
@@ -46,7 +48,7 @@ namespace Ymfm
         public uint ChannelOffset { get; }
 
         // assign operators
-        public void Assign(uint index, FmOperator<TRegisterType, TOperatorMapping> op)
+        public void Assign(uint index, FmOperator<TRegisterType> op)
         {
             if (index >= _operators.Length)
             {
@@ -109,7 +111,7 @@ namespace Ymfm
         //  according to the rshift and clipmax parameters,
         //  which vary between different implementations
         //-------------------------------------------------
-        public void Output2Op(ref TOutputType output, uint rshift, int clipMax)
+        public void Output2Op(Span<int> output, uint rshift, int clipMax)
         {
             // The first 2 operators should be populated
             Assert.IsNotNull(_operators[0]);
@@ -156,7 +158,7 @@ namespace Ymfm
             }
 
             // add to the output
-            AddToOutput(ChannelOffset, ref output, result);
+            AddToOutput(ChannelOffset, output, result);
         }
 
         //-------------------------------------------------
@@ -165,7 +167,7 @@ namespace Ymfm
         //  according to the rshift and clipmax parameters,
         //  which vary between different implementations
         //-------------------------------------------------
-        public void Output4Op(ref TOutputType output, uint rshift, int clipMax)
+        public void Output4Op(Span<int> output, uint rshift, int clipMax)
         {
             // all 4 operators should be populated
             Assert.IsNotNull(_operators[0]);
@@ -245,7 +247,7 @@ namespace Ymfm
             }
 
             // add to the output
-            AddToOutput(ChannelOffset, ref output, result);
+            AddToOutput(ChannelOffset, output, result);
         }
 
         //-------------------------------------------------
@@ -253,7 +255,7 @@ namespace Ymfm
         //  computation for OPL channel 6 in rhythm mode,
         //  which outputs a Bass Drum instrument
         //-------------------------------------------------
-        public void OutputRhythmChannel6(ref TOutputType output, uint rshift, int clipMax)
+        public void OutputRhythmChannel6(Span<int> output, uint rshift, int clipMax)
         {
             // AM amount is the same across all operators; compute it once
             var amOffset = Registers.LfoAmOffset(ChannelOffset);
@@ -279,7 +281,7 @@ namespace Ymfm
             var result = _operators[1].ComputeVolume((uint)(_operators[1].Phase + opMod), amOffset) >> (int)rshift;
 
             // add to the output
-            AddToOutput(ChannelOffset, ref output, result * 2);
+            AddToOutput(ChannelOffset, output, result * 2);
         }
 
         //-------------------------------------------------
@@ -288,7 +290,7 @@ namespace Ymfm
         //  which outputs High Hat and Snare Drum
         //  instruments
         //-------------------------------------------------
-        public void OutputRhythmChannel7(uint phaseSelect, ref TOutputType output, uint rshift, int clipMax)
+        public void OutputRhythmChannel7(uint phaseSelect, Span<int> output, uint rshift, int clipMax)
         {
             // AM amount is the same across all operators; compute it once
             var amOffset = Registers.LfoAmOffset(ChannelOffset);
@@ -308,7 +310,7 @@ namespace Ymfm
             result = math.clamp(result, -clipMax - 1, clipMax);
 
             // add to the output
-            AddToOutput(ChannelOffset, ref output, result * 2);
+            AddToOutput(ChannelOffset, output, result * 2);
         }
 
         //-------------------------------------------------
@@ -316,7 +318,7 @@ namespace Ymfm
         //  computation for OPL channel 8 in rhythm mode,
         //  which outputs Tom Tom and Top Cymbal instruments
         //-------------------------------------------------
-        public void OutputRhythmChannel8(uint phaseSelect, ref TOutputType output, uint rshift, int clipMax)
+        public void OutputRhythmChannel8(uint phaseSelect, Span<int> output, uint rshift, int clipMax)
         {
             // AM amount is the same across all operators; compute it once
             var amOffset = Registers.LfoAmOffset(ChannelOffset);
@@ -331,7 +333,7 @@ namespace Ymfm
             result = math.clamp(result, -clipMax - 1, clipMax);
 
             // add to the output
-            AddToOutput(ChannelOffset, ref output, result * 2);
+            AddToOutput(ChannelOffset, output, result * 2);
         }
 
         // are we a 4-operator channel or a 2-operator one?
@@ -344,13 +346,13 @@ namespace Ymfm
 
 
         // simple getters for debugging
-        public FmOperator<TRegisterType, TOperatorMapping> DebugOperator(uint index)
+        public FmOperator<TRegisterType> DebugOperator(uint index)
         {
             return _operators[index];
         }
 
         // helper to add values to the outputs based on channel enables
-        private void AddToOutput(uint channelOffset, ref TOutputType output, int value)
+        private void AddToOutput(uint channelOffset, Span<int> output, int value)
         {
             // create these constants to appease overzealous compilers checking array
             // bounds in unreachable code (looking at you, clang)
@@ -379,11 +381,6 @@ namespace Ymfm
                 output[(int)out3Index] += value;
             }
         }
-
-        // internal state
-        private readonly short[] _feedbackMemory; // feedback memory for operator 1
-        private short _feedbackInput; // next input value for op 1 feedback (set in output)
-        private readonly FmOperator<TRegisterType, TOperatorMapping>[] _operators; // up to 4 operators
     }
 
     internal static partial class Tables

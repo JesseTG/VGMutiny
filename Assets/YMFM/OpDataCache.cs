@@ -6,10 +6,12 @@ namespace Ymfm
     /// Holds data that is computed once at the start of clocking  and remains
     /// static during subsequent sound generation.
     /// </summary>
-    public unsafe struct OpDataCache
+    public struct OpDataCache
     {
-        // set phase_step to this value to recalculate it each sample; needed
-        // in the case of PM LFO changes
+        /// <summary>
+        /// set <see cref="PhaseStep"/> to this value to recalculate it each
+        /// sample; needed in the case of PM LFO changes
+        /// </summary>
         public const uint PhaseStepDynamic = 1;
 
         /// <summary>
@@ -28,34 +30,29 @@ namespace Ymfm
         public uint TotalLevel;
 
         /// <summary>
-        /// raw block frequency value (used to compute phase_step)
+        /// raw block frequency value (used to compute <see cref="PhaseStep"/>)
         /// </summary>
         public uint BlockFreq;
 
-        // detuning value (used to compute phase_step)
+        /// <summary>
+        /// detuning value (used to compute <see cref="PhaseStep"/>)
+        /// </summary>
         public int Detune;
 
-        // multiple value (x.1, used to compute phase_step)
+        /// <summary>
+        /// multiple value (x.1, used to compute <see cref="PhaseStep"/>)
+        /// </summary>
         public uint Multiple;
 
-        // sustain level, shifted up to envelope values
+        /// <summary>
+        /// sustain level, shifted up to envelope values
+        /// </summary>
         public uint EgSustain;
-
-        private fixed byte _egRate[(int)EnvelopeState.States];
 
         /// <summary>
         /// envelope rate, including KSR
         /// </summary>
-        public readonly Span<byte> EgRate
-        {
-            get
-            {
-                fixed (byte* ptr = _egRate)
-                {
-                    return new Span<byte>(ptr, (int)EnvelopeState.States);
-                }
-            }
-        }
+        public byte[] EgRate;
 
         // envelope shift amount
         public byte EgShift;

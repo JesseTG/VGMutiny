@@ -97,20 +97,18 @@ namespace Ymfm.Vgm
 
             if (header.Version >= 0x110 && header.Ym2151Clock != 0)
             {
-                AddChips<Ym2151, StereoOutput>(header.Ym2151Clock, ChipType.Ym2151, "YM2151");
+                AddChips<Ym2151>(header.Ym2151Clock, ChipType.Ym2151, "YM2151");
             }
         }
 
-        private void AddChips<TChip, TOutput>(uint clock, ChipType type, string chipName)
-            where TChip : IChip<TOutput>
-            where TOutput : unmanaged, IOutput
+        private void AddChips<TChip>(uint clock, ChipType type, string chipName) where TChip : IChip
         {
             var clockValue = clock & 0x3fffffff;
             var numberOfChips = (clock & 0x40000000) != 0 ? 2 : 1;
             for (var index = 0; index < numberOfChips; index++)
             {
                 _chips.Add(
-                    new VgmChip<TChip, TOutput>(
+                    new VgmChip<TChip>(
                         clockValue,
                         type,
                         (numberOfChips == 1) ? chipName : $"{chipName} #{index}"
