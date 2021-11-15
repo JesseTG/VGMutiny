@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers.Binary;
+using UnityEngine;
 
 namespace Ymfm.Vgm
 {
@@ -32,6 +33,22 @@ namespace Ymfm.Vgm
             };
 
             return span[(nullIndex + 1)..];
+        }
+
+        public static void Clamp16(this ref Span<int> span)
+        {
+            foreach (ref var i in span)
+            {
+                i = Mathf.Clamp(span[i], short.MinValue, short.MaxValue);
+            }
+        }
+
+        public static void RoundTripFp(this ref Span<int> span)
+        {
+            foreach (ref var i in span)
+            {
+                i = Utils.RoundtripFp(i);
+            }
         }
 
         /// <summary>
