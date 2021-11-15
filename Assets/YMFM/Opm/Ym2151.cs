@@ -1,5 +1,6 @@
 ﻿using System;
 using JetBrains.Annotations;
+using UnityEngine.Assertions;
 
 namespace Ymfm.Opm
 {
@@ -119,20 +120,23 @@ namespace Ymfm.Opm
         }
 
         // generate one sample of sound
-        public void Generate(Span<StereoOutput> output, uint numSamples = 1)
+        public void Generate(Span<StereoOutput> output)
         {
-            for (var samp = 0; samp < numSamples; samp++)
+            for (var index = 0; index < output.Length; index++)
             {
                 // clock the system
                 _fm.Clock(OpmRegisters.ALL_CHANNELS);
 
                 // update the FM content; OPM is full 14-bit with no intermediate clipping
-                output[samp].Clear();
-                _fm.Output(ref output[samp], 0, short.MaxValue, OpmRegisters.ALL_CHANNELS);
+
+                output[index].Clear();
+
+                Assert.AreEqual(0, output[index][0]);
+                _fm.Output(ref output[index], 0, short.MaxValue, OpmRegisters.ALL_CHANNELS);
 
                 // YM2151 uses an external DAC (YM3012) with mantissa/exponent format
                 // convert to 10.3 floating point value and back to simulate truncation
-                output[samp].RoundTripFp();
+                output[index].RoundTripFp();
             }
         }
 
@@ -143,7 +147,7 @@ namespace Ymfm.Opm
         {
             Ym2151,
             Ym2164,
-        };
+        }
 
         // internal constructor
         protected Ym2151(IYmfmInterface @interface, Variant variant) : this(
@@ -167,7 +171,7 @@ namespace Ymfm.Opm
         protected Variant m_variant; // chip variant
         protected byte _address; // address register
 
-        protected readonly FmEngineBase<OpmRegisters, StereoOutput, OpmRegisters.OpmOperatorMapping>
-            _fm; // core FM engine
+        protected readonly FmEngineBase<OpmRegisters, StereoOutput, OpmRegisters.OpmOperatorMapping> _fm;
+        // core FM engine
     }
 }

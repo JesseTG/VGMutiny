@@ -1,102 +1,104 @@
 ﻿using System;
-using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
+using Unity.Mathematics.FixedPoint;
 using UnityEngine;
 using Ymfm.Opm;
+using Object = UnityEngine.Object;
 
 namespace Ymfm.Vgm
 {
-    using uint32_t = UInt32;
-    using uint8_t = System.Byte;
-    using emulated_time = System.Int64;
-    using int32_t = System.Int32;
-
-    public class VgmPlayer
+    public sealed class VgmPlayer : IDisposable
     {
-        // This class should contain a field for each supported chip
-        private const uint MagicNumber = 0x56676d20;
+        public const int Frequency = 44100;
 
         private readonly List<BaseVgmChip> _chips;
-        private readonly VgmHeader _header;
-        public VgmHeader Header => _header;
+        private readonly uint _frequency;
 
-        public VgmPlayer(ReadOnlySpan<byte> input)
+        private VgmFile _file;
+        private bool _disposed;
+        private AudioClip _clip;
+        private BinaryReader _reader;
+        private MemoryStream _stream;
+        private int _delay;
+        private long _trackPosition;
+        private readonly long _outputStep;
+
+        internal VgmPlayer(VgmFile file)
         {
-            _chips = new List<BaseVgmChip>(8);
-            //ParseHeader(input, out _header, out var dataStart);
+            if (file == null)
+            {
+                throw new ArgumentNullException(nameof(file));
+            }
+
+            _file = file;
+            _chips = new List<BaseVgmChip>(2);
+            _stream = new MemoryStream(_file.DataArray, false);
+            _reader = new BinaryReader(_stream);
+            _frequency = Frequency;
+            _trackPosition = 0;
+            _outputStep = (long)(0x100000000ul / _frequency);
             CreateChips();
+        }
+
+        public AudioClip Clip
+        {
+            get
+            {
+                if (!_disposed && _clip == null)
+                {
+                    ref var header = ref _file.Header;
+                    var name = _file.Tags?.TrackName ?? _file.name;
+                    var loops = header.LoopBase;
+                    var length = header.TotalNumSamples + (header.LoopNumSamples * loops);
+                    // total samples + (loop samples * [number of loops - 1])
+                    if (length == 0)
+                    { // Default to 1 second if we couldn't compute a length
+                        length = _frequency;
+                        // No need to account for the channels, Unity does that
+                    }
+
+                    _clip = AudioClip.Create(name, (int)length, 2, Frequency, true, OnReadData, OnPositionSet);
+                }
+
+                return _clip;
+            }
+        }
+
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                if (_clip != null)
+                {
+                    if (Application.isPlaying)
+                    {
+                        Object.Destroy(_clip);
+                    }
+                    else
+                    {
+                        Object.DestroyImmediate(_clip);
+                    }
+                }
+
+                _file = null;
+                _stream?.Dispose();
+                _reader?.Dispose();
+                _stream = null;
+                _reader = null;
+                _clip = null;
+                _disposed = true;
+            }
         }
 
         private void CreateChips()
         {
-            // if (_header.Ym2413Clock != 0)
-            // {
-            //     add_chips<ymfm::ym2413>(_header.Ym2413Clock, ChipType.Ym2413, "YM2413");
-            // }
-            //
-            // if (_header.Version >= 0x110 && _header.Ym2612Clock != 0)
-            // {
-            //     add_chips<ymfm::ym2612>(_header.Ym2612Clock, ChipType.Ym2612, "YM2612");
-            // }
+            var header = _file.Header;
 
-            if (_header.Version >= 0x110 && _header.Ym2151Clock != 0)
+            if (header.Version >= 0x110 && header.Ym2151Clock != 0)
             {
-                AddChips<Ym2151, StereoOutput>(_header.Ym2151Clock, ChipType.Ym2151, "YM2151");
+                AddChips<Ym2151, StereoOutput>(header.Ym2151Clock, ChipType.Ym2151, "YM2151");
             }
-
-            // if (_header.Version >= 0x151 && _header.Ym2203Clock != 0)
-            // {
-            //     add_chips<ymfm::ym2203>(_header.Ym2203Clock, ChipType.Ym2203, "YM2203");
-            // }
-            //
-            // if (_header.Version >= 0x151 && _header.Ym2608Clock != 0)
-            // {
-            //     add_chips<ymfm::ym2608>(_header.Ym2608Clock, ChipType.Ym2608, "YM2608");
-            // }
-            //
-            // if (_header.Version >= 0x151 && _header.Ym2610Clock != 0)
-            // {
-            //     if (_header.IsYm2610B)
-            //     {
-            //         add_chips<ymfm::ym2610b>(_header.Ym2610Clock, ChipType.Ym2610, "YM2610B");
-            //     }
-            //     else
-            //     {
-            //         add_chips<ymfm::ym2610>(_header.Ym2610Clock, ChipType.Ym2610, "YM2610");
-            //     }
-            // }
-            //
-            // if (_header.Version >= 0x151 && _header.Ym3812Clock != 0)
-            // {
-            //     add_chips<ymfm::ym3812>(_header.Ym3812Clock, ChipType.Ym3812, "YM3812");
-            // }
-            //
-            // if (_header.Version >= 0x151 && _header.Ym3526Clock != 0)
-            // {
-            //     add_chips<ymfm::ym3526>(_header.Ym3526Clock, ChipType.Ym3526, "YM3526");
-            // }
-            //
-            // if (_header.Version >= 0x151 && _header.Y8950Clock != 0)
-            // {
-            //     add_chips<ymfm::y8950>(_header.Y8950Clock, ChipType.Y8950, "Y8950");
-            // }
-            //
-            // if (_header.Version >= 0x151 && _header.Ymf262Clock != 0)
-            // {
-            //     add_chips<ymfm::ymf262>(_header.Ymf262Clock, ChipType.Ymf262, "YMF262");
-            // }
-            //
-            // if (_header.Version >= 0x151 && _header.Ymf278bClock != 0)
-            // {
-            //     add_chips<ymfm::ymf278b>(_header.Ymf278bClock, ChipType.Ymf278B, "YMF278B");
-            // }
-            //
-            // if (_header.Version >= 0x151 && _header.Ay8910Clock != 0)
-            // {
-            //     Debug.LogWarning("Warning: clock for AY8910 specified, substituting YM2149\n");
-            //     add_chips<ymfm::ym2149>(_header.Ay8910Clock, ChipType.Ym2149, "YM2149");
-            // }
         }
 
         private void AddChips<TChip, TOutput>(uint clock, ChipType type, string chipName)
@@ -119,280 +121,311 @@ namespace Ymfm.Vgm
             // YM2608 not supported (it needs a ROM that I can't redistribute)
         }
 
-        //-------------------------------------------------
-        //  generate_all - generate everything described
-        //  in the vgmplay file
-        //-------------------------------------------------
-        private unsafe void GenerateAll(
-            ReadOnlySpan<byte> buffer,
-            uint dataStart,
-            uint outputRate,
-            List<int> wavBuffer
-        )
+
+        private void OnReadData(float[] outputData)
         {
-            // set the offset to the data start and go 
+            // the offset was set in OnPositionSet
+            var buffer = _file.Data.Span;
             var done = false;
-            var outputStep = (long)(0x100000000ul / outputRate);
-            fixed (byte* ptr = buffer)
+            Span<int> outputs = stackalloc int[2];
+            var outputOffset = 0;
+            while (!done && _stream.Position < _stream.Length && outputOffset < outputData.Length)
             {
-                using var stream = new UnmanagedMemoryStream(ptr, buffer.Length);
-                using var reader = new BinaryReader(stream);
-                stream.Position = dataStart;
+                var cmd = _reader.ReadByte();
+                ParseInstruction(cmd, buffer, ref done);
 
-                while (!done && stream.Position < buffer.Length)
+                // handle delays
+                foreach (var chip in _chips)
                 {
-                    var delay = 0;
-                    var cmd = reader.ReadByte();
-                    switch (cmd)
-                    {
-                        // YM2413, write value dd to register aa
-                        case 0x51 or 0xa1:
-                        {
-                            var register = reader.ReadByte();
-                            var data = reader.ReadByte();
-                            WriteChip(ChipType.Ym2413, (byte)(cmd >> 7), register, data);
-                            // (cmd >> 7) gets the index (the higher operand opcode is used to write to the second chip)
-                            break;
-                        }
+                    chip.Generate(_trackPosition, _outputStep, outputs);
+                }
 
-                        // YM2612 port 0, write value dd to register aa
-                        case 0x52 or 0xa2:
-                        {
-                            var register = reader.ReadByte();
-                            var data = reader.ReadByte();
-                            WriteChip(ChipType.Ym2612, (byte)(cmd >> 7), register, data);
-                            break;
-                        }
+                outputData[outputOffset] = outputs[0] / (float)short.MaxValue;
+                outputData[outputOffset + 1] = outputs[1] / (float)short.MaxValue;
+                outputOffset += 2;
+                _trackPosition += 2;
+            }
+            // while (!done && _stream.Position < buffer.Length && outputDataIndex < outputData.Length)
+            // {
+            //     if (_delay > 0)
+            //     {
+            //         --_delay;
+            //         continue;
+            //     }
+            //
+            //     var cmd = _reader.ReadByte();
+            //     ParseInstruction(cmd, buffer, ref done);
+            //
+            //     // handle delays
+            //
+            //     foreach (var chip in _chips)
+            //     {
+            //         chip.Generate(_position, outputStep, outputs);
+            //     }
+            //
+            //     _position += outputStep;
+            //     outputData[outputDataIndex] = outputs[0] / (float)short.MaxValue;
+            //     outputData[outputDataIndex + 1] = outputs[1] / (float)short.MaxValue;
+            //     outputDataIndex += 2;
+            // }
 
-                        // YM2612 port 1, write value dd to register aa
-                        case 0x53 or 0xa3:
-                        {
-                            var register = reader.ReadByte();
-                            var data = reader.ReadByte();
-                            WriteChip(ChipType.Ym2612, (byte)(cmd >> 7), register | 0x100u, data);
-                            break;
-                        }
+            // TODO: The hard part will be looping (although if onpositionset is called a lot, i could use modulo or something)
+        }
 
-                        // YM2151, write value dd to register aa
-                        case 0x54 or 0xa4:
-                        {
-                            var register = reader.ReadByte();
-                            var data = reader.ReadByte();
-                            WriteChip(ChipType.Ym2151, (byte)(cmd >> 7), register, data);
-                            break;
-                        }
+        private void ParseInstruction(byte cmd, ReadOnlySpan<byte> buffer, ref bool done)
+        {
+            switch (cmd)
+            {
+                // YM2413, write value dd to register aa
+                case 0x51 or 0xa1:
+                {
+                    var register = _reader.ReadByte();
+                    var data = _reader.ReadByte();
+                    WriteChip(ChipType.Ym2413, (byte)(cmd >> 7), register, data);
+                    // (cmd >> 7) gets the index (the higher operand opcode is used to write to the second chip)
+                    break;
+                }
 
-                        // YM2203, write value dd to register aa
-                        case 0x55 or 0xa5:
-                        {
-                            var register = reader.ReadByte();
-                            var data = reader.ReadByte();
-                            WriteChip(ChipType.Ym2203, (byte)(cmd >> 7), register, data);
-                            break;
-                        }
+                // YM2612 port 0, write value dd to register aa
+                case 0x52 or 0xa2:
+                {
+                    var register = _reader.ReadByte();
+                    var data = _reader.ReadByte();
+                    WriteChip(ChipType.Ym2612, (byte)(cmd >> 7), register, data);
+                    break;
+                }
 
-                        // YM2608 port 0, write value dd to register aa
-                        case 0x56 or 0xa6:
-                        {
-                            var register = reader.ReadByte();
-                            var data = reader.ReadByte();
-                            WriteChip(ChipType.Ym2608, (byte)(cmd >> 7), register, data);
-                            break;
-                        }
+                // YM2612 port 1, write value dd to register aa
+                case 0x53 or 0xa3:
+                {
+                    var register = _reader.ReadByte();
+                    var data = _reader.ReadByte();
+                    WriteChip(ChipType.Ym2612, (byte)(cmd >> 7), register | 0x100u, data);
+                    break;
+                }
 
-                        // YM2608 port 1, write value dd to register aa
-                        case 0x57 or 0xa7:
-                        {
-                            var register = reader.ReadByte();
-                            var data = reader.ReadByte();
-                            WriteChip(ChipType.Ym2608, (byte)(cmd >> 7), register | 0x100u, data);
-                            break;
-                        }
+                // YM2151, write value dd to register aa
+                case 0x54 or 0xa4:
+                {
+                    var register = _reader.ReadByte();
+                    var data = _reader.ReadByte();
+                    WriteChip(ChipType.Ym2151, (byte)(cmd >> 7), register, data);
+                    break;
+                }
 
-                        // YM2610 port 0, write value dd to register aa
-                        case 0x58 or 0xa8:
-                        {
-                            var register = reader.ReadByte();
-                            var data = reader.ReadByte();
-                            WriteChip(ChipType.Ym2610, (byte)(cmd >> 7), register, data);
-                            break;
-                        }
+                // YM2203, write value dd to register aa
+                case 0x55 or 0xa5:
+                {
+                    var register = _reader.ReadByte();
+                    var data = _reader.ReadByte();
+                    WriteChip(ChipType.Ym2203, (byte)(cmd >> 7), register, data);
+                    break;
+                }
 
-                        // YM2610 port 1, write value dd to register aa
-                        case 0x59 or 0xa9:
-                        {
-                            var register = reader.ReadByte();
-                            var data = reader.ReadByte();
-                            WriteChip(ChipType.Ym2610, (byte)(cmd >> 7), (uint)(register | 0x100u), data);
-                            break;
-                        }
+                // YM2608 port 0, write value dd to register aa
+                case 0x56 or 0xa6:
+                {
+                    var register = _reader.ReadByte();
+                    var data = _reader.ReadByte();
+                    WriteChip(ChipType.Ym2608, (byte)(cmd >> 7), register, data);
+                    break;
+                }
 
-                        // YM3812, write value dd to register aa
-                        case 0x5a or 0xaa:
-                        {
-                            var register = reader.ReadByte();
-                            var data = reader.ReadByte();
-                            WriteChip(ChipType.Ym3812, (byte)(cmd >> 7), register, data);
-                            break;
-                        }
+                // YM2608 port 1, write value dd to register aa
+                case 0x57 or 0xa7:
+                {
+                    var register = _reader.ReadByte();
+                    var data = _reader.ReadByte();
+                    WriteChip(ChipType.Ym2608, (byte)(cmd >> 7), register | 0x100u, data);
+                    break;
+                }
 
-                        // YM3526, write value dd to register aa
-                        case 0x5b or 0xab:
-                        {
-                            var register = reader.ReadByte();
-                            var data = reader.ReadByte();
-                            WriteChip(ChipType.Ym3526, (byte)(cmd >> 7), register, data);
-                            break;
-                        }
+                // YM2610 port 0, write value dd to register aa
+                case 0x58 or 0xa8:
+                {
+                    var register = _reader.ReadByte();
+                    var data = _reader.ReadByte();
+                    WriteChip(ChipType.Ym2610, (byte)(cmd >> 7), register, data);
+                    break;
+                }
 
-                        // Y8950, write value dd to register aa
-                        case 0x5c or 0xac:
-                        {
-                            var register = reader.ReadByte();
-                            var data = reader.ReadByte();
-                            WriteChip(ChipType.Y8950, (byte)(cmd >> 7), register, data);
-                            break;
-                        }
+                // YM2610 port 1, write value dd to register aa
+                case 0x59 or 0xa9:
+                {
+                    var register = _reader.ReadByte();
+                    var data = _reader.ReadByte();
+                    WriteChip(ChipType.Ym2610, (byte)(cmd >> 7), (uint)(register | 0x100u), data);
+                    break;
+                }
 
-                        // YMF262 port 0, write value dd to register aa
-                        case 0x5e or 0xae:
-                        {
-                            var register = reader.ReadByte();
-                            var data = reader.ReadByte();
-                            WriteChip(ChipType.Ymf262, (byte)(cmd >> 7), register, data);
-                            break;
-                        }
+                // YM3812, write value dd to register aa
+                case 0x5a or 0xaa:
+                {
+                    var register = _reader.ReadByte();
+                    var data = _reader.ReadByte();
+                    WriteChip(ChipType.Ym3812, (byte)(cmd >> 7), register, data);
+                    break;
+                }
 
-                        // YMF262 port 1, write value dd to register aa
-                        case 0x5f or 0xaf:
-                        {
-                            var register = reader.ReadByte();
-                            var data = reader.ReadByte();
-                            WriteChip(ChipType.Ymf262, (byte)(cmd >> 7), register | 0x100u, data);
-                            break;
-                        }
+                // YM3526, write value dd to register aa
+                case 0x5b or 0xab:
+                {
+                    var register = _reader.ReadByte();
+                    var data = _reader.ReadByte();
+                    WriteChip(ChipType.Ym3526, (byte)(cmd >> 7), register, data);
+                    break;
+                }
 
-                        // Wait n samples, n can range from 0 to 65535 (approx 1.49 seconds)
-                        case 0x61:
-                        {
-                            delay = reader.ReadUInt16();
-                            break;
-                        }
+                // Y8950, write value dd to register aa
+                case 0x5c or 0xac:
+                {
+                    var register = _reader.ReadByte();
+                    var data = _reader.ReadByte();
+                    WriteChip(ChipType.Y8950, (byte)(cmd >> 7), register, data);
+                    break;
+                }
 
-                        // wait 735 samples (60th of a second), a shortcut for 0x61 0xdf 0x02
-                        case 0x62:
-                        {
-                            delay = 735;
-                            break;
-                        }
+                // YMF262 port 0, write value dd to register aa
+                case 0x5e or 0xae:
+                {
+                    var register = _reader.ReadByte();
+                    var data = _reader.ReadByte();
+                    WriteChip(ChipType.Ymf262, (byte)(cmd >> 7), register, data);
+                    break;
+                }
 
-                        // wait 882 samples (50th of a second), a shortcut for 0x61 0x72 0x03
-                        case 0x63:
-                        {
-                            delay = 882;
-                            break;
-                        }
+                // YMF262 port 1, write value dd to register aa
+                case 0x5f or 0xaf:
+                {
+                    var register = _reader.ReadByte();
+                    var data = _reader.ReadByte();
+                    WriteChip(ChipType.Ymf262, (byte)(cmd >> 7), register | 0x100u, data);
+                    break;
+                }
 
-                        // end of sound data
-                        case 0x66:
-                        {
-                            done = true;
-                            break;
-                        }
+                // Wait n samples, n can range from 0 to 65535 (approx 1.49 seconds)
+                case 0x61:
+                {
+                    _delay = _reader.ReadUInt16();
+                    break;
+                }
 
-                        // data block
-                        case 0x67:
-                        {
-                            ReadDataBlock(buffer, reader);
-                            break;
-                        }
+                // wait 735 samples (60th of a second), a shortcut for 0x61 0xdf 0x02
+                case 0x62:
+                {
+                    _delay = 735;
+                    break;
+                }
 
-                        // PCM RAM write
-                        case 0x68:
-                        {
-                            ParsePcmRam(buffer, reader);
-                            break;
-                        }
+                // wait 882 samples (50th of a second), a shortcut for 0x61 0x72 0x03
+                case 0x63:
+                {
+                    _delay = 882;
+                    break;
+                }
 
-                        // AY8910, write value dd to register aa
-                        case 0xa0:
-                        {
-                            var register = reader.ReadByte();
-                            var data = reader.ReadByte();
-                            WriteChip(ChipType.Ym2149, (byte)(register >> 7), (byte)(register & 0x7f), data);
-                            break;
-                        }
+                // end of sound data
+                case 0x66:
+                {
+                    done = true;
+                    break;
+                }
 
-                        // pp aa dd: YMF278B, port pp, write value dd to register aa
-                        case 0xd0:
-                        {
-                            var port = reader.ReadByte();
-                            var register = reader.ReadByte();
-                            var data = reader.ReadByte();
-                            WriteChip(ChipType.Ymf278B, (byte)(port >> 7), ((port & 0x7fu) << 8) | register, data);
-                            break;
-                        }
+                // data block
+                case 0x67:
+                {
+                    ReadDataBlock(buffer, _reader);
+                    break;
+                }
 
-                        // wait n+1 samples, n can range from 0 to 15.
-                        case >= 0x70 and <= 0x7f:
-                        {
-                            delay = (cmd & 15) + 1;
-                            break;
-                        }
+                // PCM RAM write
+                case 0x68:
+                {
+                    ParsePcmRam(buffer, _reader);
+                    break;
+                }
 
-                        // YM2612 port 0 address 2A write from the data bank, then wait n samples; n can range from 0 to 15.
-                        // Note that the wait is n, NOT n+1. See also command 0xE0.
-                        case >= 0x80 and <= 0x8f:
-                        {
-                            var chip = FindChip(ChipType.Ym2612, 0);
-                            chip?.Write(0x2a, chip.ReadPcm());
-                            delay = cmd & 15;
-                            break;
-                        }
+                // AY8910, write value dd to register aa
+                case 0xa0:
+                {
+                    var register = _reader.ReadByte();
+                    var data = _reader.ReadByte();
+                    WriteChip(ChipType.Ym2149, (byte)(register >> 7), (byte)(register & 0x7f), data);
+                    break;
+                }
 
-                        // reserved or unsupported commands, consume one byte
-                        case (>= 0x30 and <= 0x3f) or 0x4f or 0x50:
-                        {
-                            reader.ReadByte();
-                            break;
-                        }
+                // pp aa dd: YMF278B, port pp, write value dd to register aa
+                case 0xd0:
+                {
+                    var port = _reader.ReadByte();
+                    var register = _reader.ReadByte();
+                    var data = _reader.ReadByte();
+                    WriteChip(ChipType.Ymf278B, (byte)(port >> 7), ((port & 0x7fu) << 8) | register, data);
+                    break;
+                }
 
-                        // reserved or unsupported commands, consume two bytes
-                        case (>= 0x40 and <= 0x4e) or 0x5d or (>= 0xb0 and <= 0xbf):
-                        {
-                            reader.ReadUInt16();
-                            break;
-                        }
+                // wait n+1 samples, n can range from 0 to 15.
+                case >= 0x70 and <= 0x7f:
+                {
+                    _delay = (cmd & 15) + 1;
+                    break;
+                }
 
-                        // reserved or unsupported commands, consume three bytes
-                        case (>= 0xc0 and <= 0xcf) or (>= 0xd1 and <= 0xdf):
-                        {
-                            reader.ReadByte();
-                            reader.ReadByte();
-                            reader.ReadByte();
-                            break;
-                        }
+                // YM2612 port 0 address 2A write from the data bank, then wait n samples; n can range from 0 to 15.
+                // Note that the wait is n, NOT n+1. See also command 0xE0.
+                case >= 0x80 and <= 0x8f:
+                {
+                    var chip = FindChip(ChipType.Ym2612, 0);
+                    chip?.Write(0x2a, chip.ReadPcm());
+                    _delay = cmd & 15;
+                    break;
+                }
 
-                        // dddddddd: Seek to offset dddddddd (Intel byte order) in PCM data bank of data block type 0 (YM2612).
-                        case 0xe0:
-                        {
-                            var chip = FindChip(ChipType.Ym2612, 0);
-                            var pos = reader.ReadUInt32();
-                            chip?.SeekPcm(pos);
-                            break;
-                        }
+                // reserved or unsupported commands, consume one byte
+                case (>= 0x30 and <= 0x3f) or 0x4f or 0x50:
+                {
+                    _reader.ReadByte();
+                    break;
+                }
 
-                        // reserved or unsupported commands, consume four bytes
-                        case (>= 0xe1 and <= 0xff):
-                        {
-                            reader.ReadUInt32();
-                            break;
-                        }
-                    }
+                // reserved or unsupported commands, consume two bytes
+                case (>= 0x40 and <= 0x4e) or 0x5d or (>= 0xb0 and <= 0xbf):
+                {
+                    _reader.ReadUInt16();
+                    break;
+                }
 
-                    HandleDelays(wavBuffer, delay, outputStep);
+                // reserved or unsupported commands, consume three bytes
+                case (>= 0xc0 and <= 0xcf) or (>= 0xd1 and <= 0xdf):
+                {
+                    _reader.ReadByte();
+                    _reader.ReadByte();
+                    _reader.ReadByte();
+                    break;
+                }
+
+                // dddddddd: Seek to offset dddddddd (Intel byte order) in PCM data bank of data block type 0 (YM2612).
+                case 0xe0:
+                {
+                    var chip = FindChip(ChipType.Ym2612, 0);
+                    var pos = _reader.ReadUInt32();
+                    chip?.SeekPcm(pos);
+                    break;
+                }
+
+                // reserved or unsupported commands, consume four bytes
+                case (>= 0xe1 and <= 0xff):
+                {
+                    _reader.ReadUInt32();
+                    break;
                 }
             }
+        }
+
+        private void OnPositionSet(int pos)
+        {
+            _trackPosition = pos;
+            // TODO: Handle looping
         }
 
         private static void ParsePcmRam(ReadOnlySpan<byte> buffer, BinaryReader reader)
@@ -412,24 +445,6 @@ namespace Ymfm.Vgm
             return;
         }
 
-        private void HandleDelays(List<int> wavBuffer, int delay, long outputStep)
-        {
-            Span<int> outputs = stackalloc int[2];
-            var outputPos = 0L;
-
-            // handle delays
-            while (delay-- != 0)
-            {
-                foreach (var chip in _chips)
-                {
-                    chip.Generate(outputPos, outputStep, outputs);
-                }
-
-                outputPos += outputStep;
-                wavBuffer.Add(outputs[0]);
-                wavBuffer.Add(outputs[1]);
-            }
-        }
 
         private unsafe void ReadDataBlock(ReadOnlySpan<byte> buffer, BinaryReader reader)
         {
@@ -525,6 +540,7 @@ namespace Ymfm.Vgm
             FindChip(type, index)?.Write(reg, data);
         }
 
+
         //-------------------------------------------------
         //  find_chip - find the given chip and index
         //-------------------------------------------------
@@ -561,15 +577,6 @@ namespace Ymfm.Vgm
                 var chip = FindChip(type, (byte)index);
                 chip?.WriteData(access, start, slice);
             }
-        }
-
-
-        private void OnReadData(float[] data)
-        {
-        }
-
-        private void OnPositionSet(int position)
-        {
         }
     }
 }

@@ -5,7 +5,7 @@ namespace Ymfm
     public static class YmfmDebug
     {
         // masks to help isolate specific channels
-        public const uint GLOBAL_FM_CHANNEL_MASK = 0xffffffff;
+        public const uint GLOBAL_FM_CHANNEL_MASK = 0xffffffffu;
         public const uint GLOBAL_ADPCM_A_CHANNEL_MASK = 0xffffffff;
         public const uint GLOBAL_ADPCM_B_CHANNEL_MASK = 0xffffffff;
         public const uint GLOBAL_PCM_CHANNEL_MASK = 0xffffffff;

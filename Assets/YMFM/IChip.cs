@@ -3,7 +3,7 @@ using JetBrains.Annotations;
 
 namespace Ymfm
 {
-    public interface IChip<TOutput> where TOutput : struct, IOutput
+    public interface IChip<TOutput> where TOutput : unmanaged, IOutput
     {
         //-------------------------------------------------
         //  reset - reset the system
@@ -20,8 +20,16 @@ namespace Ymfm
         //-------------------------------------------------
         public void Write(uint offset, byte data);
 
+        public unsafe void Generate(ref TOutput output)
+        {
+            fixed (TOutput* ptr = &output)
+            {
+                var span = new Span<TOutput>(ptr, 1);
+                Generate(span);
+            }
+        }
 
-        public void Generate(Span<TOutput> output, uint numSamples = 1);
+        public void Generate(Span<TOutput> output);
 
         public uint Outputs { get; }
     }

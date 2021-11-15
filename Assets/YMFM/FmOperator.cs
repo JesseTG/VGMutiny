@@ -10,33 +10,42 @@ namespace Ymfm
     /// output sine wave modulated by an envelope
     /// </summary>
     /// <typeparam name="TRegisterType"></typeparam>
-    /// <typeparam name="TOutputType"></typeparam>
     /// <typeparam name="TOperatorMapping"></typeparam>
-    public sealed class FmOperator<TRegisterType, TOutputType, TOperatorMapping>
+    public sealed class FmOperator<TRegisterType, TOperatorMapping>
         where TRegisterType : class, IFmRegisters<TOperatorMapping>, new()
-        where TOutputType : struct, IOutput
         where TOperatorMapping : struct, IOperatorMapping
     {
-        // "quiet" value, used to optimize when we can skip doing working
+        /// <summary>
+        /// "quiet" value, used to optimize when we can skip doing working
+        /// </summary>
         public const uint EgQuiet = 0x200;
 
 
-        // constructor
-        public FmOperator(FmEngineBase<TRegisterType, TOutputType, TOperatorMapping> owner, uint operatorOffset)
-        {
-            if (owner == null)
-            {
-                throw new ArgumentNullException(nameof(owner));
-            }
+        // internal state
+        private uint _phase; // current phase value (10.10 format)
+        private ushort _envelopeAttenuation; // computed envelope attenuation (4.6 format)
+        private EnvelopeState _envelopeState; // current envelope state
+        private byte _ssgInverted; // non-zero if the output should be inverted (bit 0)
 
-            Registers = owner.Registers;
+        /// <summary>
+        /// current key state: on or off
+        /// </summary>
+        private bool _keyState;
+
+        private byte _keyOnLive; // live key on state (bit 0 = direct, bit 1 = rhythm, bit 2 = CSM)
+        private OpDataCache _cache; // cached values for performance
+
+        // constructor
+        public FmOperator(TRegisterType registers, uint operatorOffset)
+        {
+            Registers = registers ?? throw new ArgumentNullException(nameof(registers));
             ChannelOffset = 0;
             OperatorOffset = operatorOffset;
             _phase = 0;
             _envelopeAttenuation = 0x3ff;
             _envelopeState = EnvelopeState.Release;
             _ssgInverted = 0;
-            _keyState = 0;
+            _keyState = false;
             _keyOnLive = 0;
         }
 
@@ -59,7 +68,7 @@ namespace Ymfm
             _envelopeAttenuation = 0x3ff;
             _envelopeState = EnvelopeState.Release;
             _ssgInverted = 0;
-            _keyState = 0;
+            _keyState = false;
             _keyOnLive = 0;
         }
 
@@ -80,7 +89,7 @@ namespace Ymfm
             Registers.CacheOperatorData(ChannelOffset, OperatorOffset, ref _cache);
 
             // clock the key state
-            ClockKeyState((_keyOnLive != 0) ? 1u : 0u);
+            ClockKeyState(_keyOnLive != 0);
             _keyOnLive &= unchecked((byte)~(1 << (int)KeyOnType.Csm));
 
             // we're active until we're quiet after the release
@@ -237,21 +246,18 @@ namespace Ymfm
             }
         }
 
-        //-------------------------------------------------
-        //  clock_keystate - clock the keystate to match
-        //  the incoming keystate
-        //-------------------------------------------------
-        private void ClockKeyState(uint keyState)
+        /// <summary>
+        /// clock the keystate to match the incoming keystate
+        /// </summary>
+        private void ClockKeyState(bool keyState)
         {
-            Debug.Assert(keyState is 0 or 1);
-
             // has the key changed?
-            if ((keyState ^ _keyState) != 0)
+            if (keyState != _keyState)
             {
-                _keyState = (byte)keyState;
+                _keyState = keyState;
 
                 // if the key has turned on, start the attack
-                if (keyState != 0)
+                if (keyState)
                 {
                     // OPLL has a DP ("depress"?) state to bring the volume
                     // down before starting the attack
@@ -330,7 +336,7 @@ namespace Ymfm
         //  clock_envelope - clock the envelope state
         //  according to the given count
         //-------------------------------------------------
-        private unsafe void ClockEnvelope(uint envCounter)
+        private void ClockEnvelope(uint envCounter)
         {
             // handle attack->decay transitions
             if (_envelopeState == EnvelopeState.Attack && _envelopeAttenuation == 0)
@@ -455,14 +461,6 @@ namespace Ymfm
             return math.min(result, 0x3ff);
         }
 
-        // internal state
-        private uint _phase; // current phase value (10.10 format)
-        private ushort _envelopeAttenuation; // computed envelope attenuation (4.6 format)
-        private EnvelopeState _envelopeState; // current envelope state
-        private byte _ssgInverted; // non-zero if the output should be inverted (bit 0)
-        private byte _keyState; // current key state: on or off (bit 0)
-        private byte _keyOnLive; // live key on state (bit 0 = direct, bit 1 = rhythm, bit 2 = CSM)
-        private OpDataCache _cache; // cached values for performance
 
         //-------------------------------------------------
         //  attenuation_increment - given a 6-bit ADSR

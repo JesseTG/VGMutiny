@@ -5,26 +5,23 @@ using UnityEngine.Assertions;
 
 namespace Ymfm
 {
-    // fm_channel represents an FM channel which combines the output of 2 or 4
-    // operators into a final result
+    /// <summary>
+    /// Represents an FM channel which combines the output of 2 or 4 operators
+    /// into a final result
+    /// </summary>
     public sealed class FmChannel<TRegisterType, TOutputType, TOperatorMapping>
         where TRegisterType : class, IFmRegisters<TOperatorMapping>, new()
-        where TOutputType : struct, IOutput
+        where TOutputType : unmanaged, IOutput
         where TOperatorMapping : struct, IOperatorMapping
     {
         // constructor
-        public FmChannel(FmEngineBase<TRegisterType, TOutputType, TOperatorMapping> owner, uint channelOffset)
+        public FmChannel(TRegisterType registers, uint channelOffset)
         {
-            if (owner == null)
-            {
-                throw new ArgumentNullException(nameof(owner));
-            }
-
-            Registers = owner.Registers;
+            Registers = registers ?? throw new ArgumentNullException(nameof(registers));
             ChannelOffset = channelOffset;
             _feedbackMemory = new short[] { 0, 0 };
             _feedbackInput = 0;
-            _operators = new FmOperator<TRegisterType, TOutputType, TOperatorMapping>[] { null, null, null, null };
+            _operators = new FmOperator<TRegisterType, TOperatorMapping>[] { null, null, null, null };
         }
 
         //-------------------------------------------------
@@ -49,9 +46,13 @@ namespace Ymfm
         public uint ChannelOffset { get; }
 
         // assign operators
-        public void Assign(uint index, FmOperator<TRegisterType, TOutputType, TOperatorMapping> op)
+        public void Assign(uint index, FmOperator<TRegisterType, TOperatorMapping> op)
         {
-            Assert.IsTrue(index < _operators.Length);
+            if (index >= _operators.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index), index, $"Expected an index < {_operators.Length}");
+            }
+
             _operators[index] = op;
             if (op != null)
             {
@@ -59,7 +60,9 @@ namespace Ymfm
             }
         }
 
-        // signal key on/off to our operators
+        /// <summary>
+        /// signal key on/off to our operators
+        /// </summary>
         public void KeyOnOff(uint states, KeyOnType type, uint channelNumber)
         {
             for (var opnum = 0; opnum < _operators.Length; opnum++)
@@ -332,7 +335,8 @@ namespace Ymfm
         }
 
         // are we a 4-operator channel or a 2-operator one?
-        public bool Is4Op => Registers.DynamicOps ? _operators[2] != null : Registers.Operators / Registers.Channels == 4;
+        public bool Is4Op =>
+            Registers.DynamicOps ? _operators[2] != null : Registers.Operators / Registers.Channels == 4;
 
         // return a reference to our registers
         [NotNull]
@@ -340,7 +344,7 @@ namespace Ymfm
 
 
         // simple getters for debugging
-        public FmOperator<TRegisterType, TOutputType, TOperatorMapping> DebugOperator(uint index)
+        public FmOperator<TRegisterType, TOperatorMapping> DebugOperator(uint index)
         {
             return _operators[index];
         }
@@ -357,29 +361,29 @@ namespace Ymfm
 
             if (Registers.Outputs == 1 || Registers.ChannelOutput0(channelOffset) != 0)
             {
-                output.Data[out0Index] += value;
+                output[out0Index] += value;
             }
 
             if (Registers.Outputs >= 2 && Registers.ChannelOutput1(channelOffset) != 0)
             {
-                output.Data[(int)out1Index] += value;
+                output[(int)out1Index] += value;
             }
 
             if (Registers.Outputs >= 3 && Registers.ChannelOutput2(channelOffset) != 0)
             {
-                output.Data[(int)out2Index] += value;
+                output[(int)out2Index] += value;
             }
 
             if (Registers.Outputs >= 4 && Registers.ChannelOutput3(channelOffset) != 0)
             {
-                output.Data[(int)out3Index] += value;
+                output[(int)out3Index] += value;
             }
         }
 
         // internal state
         private readonly short[] _feedbackMemory; // feedback memory for operator 1
         private short _feedbackInput; // next input value for op 1 feedback (set in output)
-        private readonly FmOperator<TRegisterType, TOutputType, TOperatorMapping>[] _operators; // up to 4 operators
+        private readonly FmOperator<TRegisterType, TOperatorMapping>[] _operators; // up to 4 operators
     }
 
     internal static partial class Tables
@@ -416,8 +420,7 @@ namespace Ymfm
             ushort op3Out
         )
         {
-            return (ushort)((op2In) | ((op3In) << 1) | ((op4In) << 4) | ((op1Out) << 7) | ((op2Out) << 8) |
-                            ((op3Out) << 9));
+            return (ushort)(op2In | (op3In << 1) | (op4In << 4) | (op1Out << 7) | (op2Out << 8) | (op3Out << 9));
         }
 
         public static readonly ushort[] AlgorithmOps =

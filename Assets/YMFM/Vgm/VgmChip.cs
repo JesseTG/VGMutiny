@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using JetBrains.Annotations;
+using Unity.Mathematics.FixedPoint;
 
 namespace Ymfm.Vgm
 {
@@ -10,6 +11,18 @@ namespace Ymfm.Vgm
         where TChip : IChip<TOutput>
         where TOutput : unmanaged, IOutput
     {
+        // internal state
+        private readonly ChipType _type;
+        private string _name;
+        private readonly byte[][] _data;
+        private uint _pcmOffset;
+        private TChip _chip;
+        private readonly uint _clock;
+        private ulong _clocks;
+        private readonly long _step;
+        private long _pos;
+        private readonly Queue<(uint, byte)> _queue;
+
         // construction
         public VgmChip(uint clock, ChipType type, string name)
         {
@@ -25,11 +38,9 @@ namespace Ymfm.Vgm
             }
 
             _queue = new Queue<(uint, byte)>();
-
-
             _clock = clock;
             _clocks = 0;
-            _step = 0x100000000L / _chip.SampleRate(clock);
+            _step = (long)(0x100000000uL / _chip.SampleRate(clock));
             _pos = 0;
             _chip.Reset();
         }
@@ -47,8 +58,9 @@ namespace Ymfm.Vgm
         }
 
         // generate one output sample of output
-        public override unsafe void Generate(long outputStart, long outputStep, Span<int> buffer)
+        public override void Generate(long outputStart, long outputStep, Span<int> outputBuffer)
         {
+            TOutput output = new();
             var addr1 = 0xffffu;
             var addr2 = 0xffffu;
             byte data1 = 0;
@@ -65,70 +77,52 @@ namespace Ymfm.Vgm
             }
 
             // write to the chip
-            if (addr1 != 0xffff)
+            if (addr1 != 0xffffu)
             {
-                // if (LOG_WRITES)
-                //     Debug.LogFormat("%10.5f: %s %03X=%02X", (double)(m_clocks) / (double)(m_chip.SampleRate(m_clock)),
-                //         m_name,
-                //         data1, data2);
                 _chip.Write(addr1, data1);
                 _chip.Write(addr2, data2);
             }
 
-
             // generate at the appropriate sample rate
-
-            fixed (TOutput* output = &_output)
+            for (; _pos <= outputStart; _pos += _step)
             {
-                var span = new Span<TOutput>(output, 1);
-                for (; _pos <= outputStart; _pos += _step)
-                {
-                    _chip.Generate(span);
-                }
+                _chip.Generate(ref output);
             }
 
-            var data = _output.Data;
-
-            fixed (int* ptr = buffer)
+            // add the final result to the buffer
+            if (_type == ChipType.Ym2203)
             {
-                // add the final result to the buffer
-                var bufferPtr = ptr;
-                switch (_type)
-                {
-                    case ChipType.Ym2203:
-                    {
-                        var out0 = _output.Data[0];
-                        var out1 = _output.Data[(int)(1 % _chip.Outputs)];
-                        var out2 = _output.Data[(int)(2 % _chip.Outputs)];
-                        var out3 = _output.Data[(int)(3 % _chip.Outputs)];
-                        *bufferPtr++ += out0 + out1 + out2 + out3;
-                        *bufferPtr++ += out0 + out1 + out2 + out3;
-                        break;
-                    }
-                    case ChipType.Ym2608 or ChipType.Ym2610:
-                    {
-                        var out0 = _output.Data[0];
-                        var out1 = _output.Data[(int)(1 % _chip.Outputs)];
-                        var out2 = _output.Data[(int)(2 % _chip.Outputs)];
-                        *bufferPtr++ += out0 + out2;
-                        *bufferPtr++ += out1 + out2;
-                        break;
-                    }
-                    case ChipType.Ymf278B:
-                        *bufferPtr++ += _output.Data[4];
-                        *bufferPtr++ += _output.Data[5];
-                        break;
-                    case var _ when _chip.Outputs == 1:
-                        *bufferPtr++ += _output.Data[0];
-                        *bufferPtr++ += _output.Data[0];
-                        break;
-                    default:
-                        *bufferPtr++ += _output.Data[0];
-                        *bufferPtr++ += _output.Data[(int)(1 % _chip.Outputs)];
-
-                        break;
-                }
+                var out0 = output[0];
+                var out1 = output[(int)(1 % _chip.Outputs)];
+                var out2 = output[(int)(2 % _chip.Outputs)];
+                var out3 = output[(int)(3 % _chip.Outputs)];
+                outputBuffer[0] += out0 + out1 + out2 + out3;
+                outputBuffer[1] += out0 + out1 + out2 + out3;
             }
+            else if (_type is ChipType.Ym2608 or ChipType.Ym2610)
+            {
+                var out0 = output[0];
+                var out1 = output[(int)(1 % _chip.Outputs)];
+                var out2 = output[(int)(2 % _chip.Outputs)];
+                outputBuffer[0] += out0 + out2;
+                outputBuffer[1] += out1 + out2;
+            }
+            else if (_type == ChipType.Ymf278B)
+            {
+                outputBuffer[0] += output[4];
+                outputBuffer[1] += output[5];
+            }
+            else if (_chip.Outputs == 1)
+            {
+                outputBuffer[0] += output[0];
+                outputBuffer[1] += output[0];
+            }
+            else
+            {
+                outputBuffer[0] += output[0];
+                outputBuffer[1] += output[(int)(1 % _chip.Outputs)];
+            }
+
 
             _clocks++;
         }
@@ -169,18 +163,5 @@ namespace Ymfm.Vgm
         IEngineCallbacks IYmfmInterface.Engine { get; set; }
 
         public override ChipType Type => _type;
-
-        // internal state
-        private readonly ChipType _type;
-        private string _name;
-        private readonly byte[][] _data;
-        private uint _pcmOffset;
-        private TChip _chip;
-        private readonly uint _clock;
-        private ulong _clocks;
-        private TOutput _output;
-        private readonly long _step;
-        private long _pos;
-        private readonly Queue<(uint, byte)> _queue;
     };
 }

@@ -1,12 +1,5 @@
 ﻿namespace Ymfm.Opm
 {
-    using uint32_t = System.UInt32;
-    using int32_t = System.Int32;
-    using uint8_t = System.Byte;
-    using uint16_t = System.UInt16;
-    using int16_t = System.Int16;
-    using int8_t = System.SByte;
-
     public partial class OpmRegisters
     {
         // Note that the channel index order is 0,2,1,3, so we bitswap the index.
@@ -37,6 +30,5 @@
             (781 * 64 + 50) / 100,
             (950 * 64 + 50) / 100,
         };
-
     }
 }

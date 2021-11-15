@@ -2,7 +2,9 @@
     "name": "YMFM",
     "rootNamespace": "",
     "references": [
-        "GUID:d8b63aba1907145bea998dd612889d6b"
+        "GUID:3b657de9509b8304997f7568b9c95b61",
+        "GUID:d8b63aba1907145bea998dd612889d6b",
+        "GUID:0efc075be62ff074592f9ad36fcc4058"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

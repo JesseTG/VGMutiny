@@ -93,18 +93,19 @@ namespace Ymfm.Opm
         // constructor
         public OpmRegisters()
         {
-            m_lfo_counter = 0;
-            m_noise_lfsr = 1;
-            m_noise_counter = 0;
-            m_noise_state = 0;
-            m_noise_lfo = 0;
-            m_lfo_am = 0;
-            m_lfo_waveform = new short[4, LFO_WAVEFORM_LENGTH];
-
+            _lfoCounter = 0;
+            _noiseLfsr = 1;
+            _noiseCounter = 0;
+            _noiseState = 0;
+            _noiseLfo = 0;
+            _lfoAm = 0;
+            _registerData = default;
+            _lfoWaveform = new short[4, LFO_WAVEFORM_LENGTH];
+            _waveform = new WaveformTable((int)(WAVEFORMS * WAVEFORM_LENGTH));
             // create the waveforms
             for (uint index = 0; index < WAVEFORM_LENGTH; index++)
             {
-                m_waveform[0, index] = (ushort)(Utils.AbsSinAttenuation(index) | (Utils.Bitfield(index, 9) << 15));
+                _waveform[0, index] = (ushort)(Utils.AbsSinAttenuation(index) | (Utils.Bitfield(index, 9) << 15));
             }
 
             // create the LFO waveforms; AM in the low 8 bits, PM in the upper 8
@@ -114,17 +115,17 @@ namespace Ymfm.Opm
                 // waveform 0 is a sawtooth
                 var am = (byte)(index ^ 0xff);
                 var pm = (sbyte)(index);
-                m_lfo_waveform[0, index] = (short)(am | (pm << 8));
+                _lfoWaveform[0, index] = (short)(am | (pm << 8));
 
                 // waveform 1 is a square wave
                 am = (byte)(Utils.Bitfield(index, 7) != 0 ? 0 : 0xff);
                 pm = (sbyte)(am ^ 0x80);
-                m_lfo_waveform[1, index] = (short)(am | (pm << 8));
+                _lfoWaveform[1, index] = (short)(am | (pm << 8));
 
                 // waveform 2 is a triangle wave
                 am = (byte)(Utils.Bitfield(index, 7) != 0 ? (index << 1) : ((index ^ 0xff) << 1));
                 pm = (sbyte)(Utils.Bitfield(index, 6) != 0 ? am : ~am);
-                m_lfo_waveform[2, index] = (short)(am | (pm << 8));
+                _lfoWaveform[2, index] = (short)(am | (pm << 8));
 
                 // waveform 3 is noise; it is filled in dynamically
             }
@@ -133,23 +134,23 @@ namespace Ymfm.Opm
         // reset to initial state
         public void Reset()
         {
-            m_regdata.Data.Fill(0);
+            _registerData.Data.Fill(0);
 
             // enable output on both channels by default
-            m_regdata.Data[0x20] = m_regdata.Data[0x21] = m_regdata.Data[0x22] = m_regdata.Data[0x23] = 0xc0;
-            m_regdata.Data[0x24] = m_regdata.Data[0x25] = m_regdata.Data[0x26] = m_regdata.Data[0x27] = 0xc0;
+            _registerData.Data[0x20] = _registerData.Data[0x21] = _registerData.Data[0x22] = _registerData.Data[0x23] = 0xc0;
+            _registerData.Data[0x24] = _registerData.Data[0x25] = _registerData.Data[0x26] = _registerData.Data[0x27] = 0xc0;
         }
 
         // save/restore
         public void SaveRestore(YmfmSavedState state)
         {
-            state.SaveRestore(ref m_lfo_counter);
-            state.SaveRestore(ref m_lfo_am);
-            state.SaveRestore(ref m_noise_lfsr);
-            state.SaveRestore(ref m_noise_counter);
-            state.SaveRestore(ref m_noise_state);
-            state.SaveRestore(ref m_noise_lfo);
-            state.SaveRestore(m_regdata.Data);
+            state.SaveRestore(ref _lfoCounter);
+            state.SaveRestore(ref _lfoAm);
+            state.SaveRestore(ref _noiseLfsr);
+            state.SaveRestore(ref _noiseCounter);
+            state.SaveRestore(ref _noiseState);
+            state.SaveRestore(ref _noiseLfo);
+            state.SaveRestore(_registerData.Data);
         }
 
         //-------------------------------------------------
@@ -171,15 +172,15 @@ namespace Ymfm.Opm
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
 
-            // LFO AM/PM depth are written to the same register (0x19);
+            // LFO AM/PM depth are written to the same register (0x19)
             // redirect the PM depth to an unused neighbor (0x1a)
             if (index == 0x19)
             {
-                m_regdata.Data[(int)(index + Utils.Bitfield(data, 7))] = data;
+                _registerData.Data[(int)(index + Utils.Bitfield(data, 7))] = data;
             }
             else if (index != 0x1a)
             {
-                m_regdata.Data[index] = data;
+                _registerData.Data[index] = data;
             }
 
             // handle writes to the key on index
@@ -209,14 +210,14 @@ namespace Ymfm.Opm
                 // sampled at the noise frequency for output purposes; note that the
                 // low 8 bits are the most recent 8 bits of history while bits 8-24
                 // contain the 17 bit LFSR state
-                m_noise_lfsr <<= 1;
-                m_noise_lfsr |= Utils.Bitfield(m_noise_lfsr, 17) ^ Utils.Bitfield(m_noise_lfsr, 14) ^ 1;
+                _noiseLfsr <<= 1;
+                _noiseLfsr |= Utils.Bitfield(_noiseLfsr, 17) ^ Utils.Bitfield(_noiseLfsr, 14) ^ 1;
 
                 // compare against the frequency and latch when we exceed it
-                if (m_noise_counter++ >= freq)
+                if (_noiseCounter++ >= freq)
                 {
-                    m_noise_counter = 0;
-                    m_noise_state = (byte)Utils.Bitfield(m_noise_lfsr, 17);
+                    _noiseCounter = 0;
+                    _noiseState = (byte)Utils.Bitfield(_noiseLfsr, 17);
                 }
             }
 
@@ -224,31 +225,31 @@ namespace Ymfm.Opm
             // leading 1; this matches exactly the frequencies in the application
             // manual, though it might not be implemented exactly this way on chip
             var rate = LfoRate;
-            m_lfo_counter += (0x10 | Utils.Bitfield(rate, 0, 4)) << (int)Utils.Bitfield(rate, 4, 4);
+            _lfoCounter += (0x10 | Utils.Bitfield(rate, 0, 4)) << (int)Utils.Bitfield(rate, 4, 4);
 
             // bit 1 of the test register is officially undocumented but has been
             // discovered to hold the LFO in reset while active
             if (LfoReset != 0)
             {
-                m_lfo_counter = 0;
+                _lfoCounter = 0;
             }
 
             // now pull out the non-fractional LFO value
-            var lfo = Utils.Bitfield(m_lfo_counter, 22, 8);
+            var lfo = Utils.Bitfield(_lfoCounter, 22, 8);
 
             // fill in the noise entry 1 ahead of our current position; this
             // ensures the current value remains stable for a full LFO clock
             // and effectively latches the running value when the LFO advances
-            var lfoNoise = Utils.Bitfield(m_noise_lfsr, 17, 8);
-            m_lfo_waveform[3, (lfo + 1) & 0xff] = (short)(lfoNoise | (lfoNoise << 8));
+            var lfoNoise = Utils.Bitfield(_noiseLfsr, 17, 8);
+            _lfoWaveform[3, (lfo + 1) & 0xff] = (short)(lfoNoise | (lfoNoise << 8));
 
             // fetch the AM/PM values based on the waveform; AM is unsigned and
             // encoded in the low 8 bits, while PM signed and encoded in the upper
             // 8 bits
-            int ampm = m_lfo_waveform[LfoWaveform, lfo];
+            int ampm = _lfoWaveform[LfoWaveform, lfo];
 
             // apply depth to the AM value and store for later
-            m_lfo_am = (byte)(((ampm & 0xff) * LfoAmDepth) >> 7);
+            _lfoAm = (byte)(((ampm & 0xff) * LfoAmDepth) >> 7);
 
             // apply depth to the PM value and return it
             return ((ampm >> 8) * (int)(LfoPmDepth)) >> 7;
@@ -272,11 +273,11 @@ namespace Ymfm.Opm
             // raw LFO AM value on OPM is 0-FF, which is already a factor of 2
             // larger than the OPN below, putting our staring point at 2x theirs;
             // this works out since our minimum is 2x their maximum
-            return (uint)(m_lfo_am << (int)(amSensitivity - 1));
+            return (uint)(_lfoAm << (int)(amSensitivity - 1));
         }
 
         // return the current noise state, gated by the noise clock
-        public uint NoiseState => m_noise_state;
+        public uint NoiseState => _noiseState;
 
         //-------------------------------------------------
         //  cache_operator_data - fill the operator cache
@@ -285,8 +286,7 @@ namespace Ymfm.Opm
         public void CacheOperatorData(uint channelOffset, uint operatorOffset, ref OpDataCache cache)
         {
             // set up the easy stuff
-            // cache.Waveform = m_waveform[0, 0];
-            // TODO: Cache the waveform
+            cache.Waveform = _waveform.Waveform;
 
             // get frequency from the channel
             var blockFreq = cache.BlockFreq = ChannelBlockFreq(channelOffset);
@@ -329,7 +329,7 @@ namespace Ymfm.Opm
             cache.EgSustain |= (cache.EgSustain + 1) & 0x10;
             cache.EgSustain <<= 5;
 
-            // determine KSR adjustment for enevlope rates
+            // determine KSR adjustment for envelope rates
             var ksrVal = keycode >> (int)(OpKsr(operatorOffset) ^ 3);
             cache.EgRate[(int)EnvelopeState.Attack] =
                 (byte)IFmRegisters<OpmOperatorMapping>.EffectiveRate(OpAttackRate(operatorOffset) * 2, ksrVal);
@@ -536,7 +536,7 @@ namespace Ymfm.Opm
         [Pure, MethodImpl(MethodImplOptions.AggressiveInlining)]
         private uint @byte(uint offset, uint start, uint count, uint extraOffset = 0)
         {
-            return Utils.Bitfield(m_regdata.Data[(int)(offset + extraOffset)], (int)start, (int)count);
+            return Utils.Bitfield(_registerData.Data[(int)(offset + extraOffset)], (int)start, (int)count);
         }
 
         /// <summary>
@@ -558,15 +558,15 @@ namespace Ymfm.Opm
         }
 
         // internal state
-        private uint m_lfo_counter; // LFO counter
-        private uint m_noise_lfsr; // noise LFSR state
-        private byte m_noise_counter; // noise counter
-        private byte m_noise_state; // latched noise state
-        private byte m_noise_lfo; // latched LFO noise value
-        private byte m_lfo_am; // current LFO AM value
-        private RegisterData m_regdata; // register data
-        private readonly short[,] m_lfo_waveform; // LFO waveforms; AM in low 8, PM in upper 8
-        private readonly WaveformTable m_waveform; // waveforms
+        private uint _lfoCounter; // LFO counter
+        private uint _noiseLfsr; // noise LFSR state
+        private byte _noiseCounter; // noise counter
+        private byte _noiseState; // latched noise state
+        private byte _noiseLfo; // latched LFO noise value
+        private byte _lfoAm; // current LFO AM value
+        private readonly RegisterData _registerData; // register data
+        private readonly short[,] _lfoWaveform; // LFO waveforms; AM in low 8, PM in upper 8
+        private readonly WaveformTable _waveform; // waveforms
 
         private unsafe struct RegisterData
         {
@@ -584,116 +584,39 @@ namespace Ymfm.Opm
             private fixed byte _data[(int)REGISTERS];
         }
 
-        private unsafe struct WaveformTable
+        private struct WaveformTable
         {
-            private fixed ushort _waveform[(int)(WAVEFORMS * WAVEFORM_LENGTH)];
+            private readonly ushort[] _waveform;
 
-            public readonly Span<ushort> Table
+            public WaveformTable(int length)
             {
-                get
-                {
-                    fixed (ushort* ptr = _waveform)
-                    {
-                        return new Span<ushort>(ptr, (int)(WAVEFORMS * WAVEFORM_LENGTH));
-                    }
-                }
+                _waveform = new ushort[length];
             }
 
-            public ushort this[int x, int y]
-            {
-                [Pure]
-                readonly get
-                {
-                    ValidateX(x);
-                    ValidateY(y);
-                    return _waveform[WAVEFORMS * x + y];
-                }
-                set
-                {
-                    ValidateX(x);
-                    ValidateY(y);
-                    _waveform[WAVEFORMS * x + y] = value;
-                }
-            }
-
+            public ushort[] Waveform => _waveform;
 
             public ushort this[uint x, uint y]
             {
                 [Pure]
                 readonly get
                 {
-                    ValidateX(x);
-                    ValidateY(y);
+                    ValidateIndex(x, y);
                     return _waveform[WAVEFORMS * x + y];
                 }
                 set
                 {
-                    ValidateX(x);
-                    ValidateY(y);
+                    ValidateIndex(x, y);
                     _waveform[WAVEFORMS * x + y] = value;
                 }
             }
 
-            public ushort this[int x, uint y]
-            {
-                [Pure]
-                readonly get
-                {
-                    ValidateX(x);
-                    ValidateY(y);
-                    return _waveform[WAVEFORMS * x + y];
-                }
-                set
-                {
-                    ValidateX(x);
-                    ValidateY(y);
-                    _waveform[WAVEFORMS * x + y] = value;
-                }
-            }
-
-            public ushort this[uint x, int y]
-            {
-                [Pure]
-                readonly get
-                {
-                    ValidateX(x);
-                    ValidateY(y);
-                    return _waveform[WAVEFORMS * x + y];
-                }
-                set
-                {
-                    ValidateX(x);
-                    ValidateY(y);
-                    _waveform[WAVEFORMS * x + y] = value;
-                }
-            }
-
-            private static void ValidateX(int x)
-            {
-                if (x < 0 || x >= WAVEFORMS)
-                {
-                    throw new ArgumentOutOfRangeException(nameof(x), x, $"Expected 0 <= x < {WAVEFORMS}, got {x}");
-                }
-            }
-
-            private static void ValidateX(uint x)
+            private static void ValidateIndex(uint x, uint y)
             {
                 if (x >= WAVEFORMS)
                 {
                     throw new ArgumentOutOfRangeException(nameof(x), x, $"Expected 0 <= x < {WAVEFORMS}, got {x}");
                 }
-            }
 
-            private static void ValidateY(int y)
-            {
-                if (y < 0 || y >= WAVEFORM_LENGTH)
-                {
-                    throw new ArgumentOutOfRangeException(nameof(y), y, $"Expected 0 <=y < {WAVEFORM_LENGTH}, got {y}");
-                }
-            }
-
-            private static void ValidateY(uint y)
-            {
                 if (y >= WAVEFORM_LENGTH)
                 {
                     throw new ArgumentOutOfRangeException(nameof(y), y, $"Expected 0 <=y < {WAVEFORM_LENGTH}, got {y}");

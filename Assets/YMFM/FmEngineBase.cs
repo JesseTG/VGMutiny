@@ -1,21 +1,22 @@
 ﻿using System;
 using JetBrains.Annotations;
-using Unity.Mathematics;
 using UnityEngine.Assertions;
 
 namespace Ymfm
 {
-    using uint8_t = System.Byte;
-    using uint32_t = System.UInt32;
-    using int32_t = System.Int32;
-    using uint16_t = System.UInt16;
+    using uint8_t = Byte;
+    using uint32_t = UInt32;
+    using int32_t = Int32;
+    using uint16_t = UInt16;
 
-// fm_engine_base represents a set of operators and channels which together
-// form a Yamaha FM core; chips that implement other engines (ADPCM, wavetable,
-// etc) take this output and combine it with the others externally
+    /// <summary>
+    /// Represents a set of operators and channels which together
+    /// form a Yamaha FM core; chips that implement other engines (ADPCM, wavetable,
+    /// etc) take this output and combine it with the others externally
+    /// </summary>
     public class FmEngineBase<TRegisters, TOutput, TOperatorMapping> : IEngineCallbacks
         where TRegisters : class, IFmRegisters<TOperatorMapping>, new()
-        where TOutput : struct, IOutput
+        where TOutput : unmanaged, IOutput
         where TOperatorMapping : struct, IOperatorMapping
     {
         // constructor
@@ -40,14 +41,16 @@ namespace Ymfm
             _channels = new FmChannel<TRegisters, TOutput, TOperatorMapping>[Registers.Channels];
             for (var chnum = 0u; chnum < _channels.Length; chnum++)
             {
-                _channels[chnum] = new FmChannel<TRegisters, TOutput, TOperatorMapping>(this, Registers.ChannelOffset(chnum));
+                _channels[chnum] =
+                    new FmChannel<TRegisters, TOutput, TOperatorMapping>(Registers, Registers.ChannelOffset(chnum));
             }
 
             // create the operators
-            _operators = new FmOperator<TRegisters, TOutput, TOperatorMapping>[Registers.Operators];
+            _operators = new FmOperator<TRegisters, TOperatorMapping>[Registers.Operators];
             for (var opnum = 0u; opnum < _operators.Length; opnum++)
             {
-                _operators[opnum] = new FmOperator<TRegisters, TOutput, TOperatorMapping>(this, Registers.OperatorOffset(opnum));
+                _operators[opnum] =
+                    new FmOperator<TRegisters, TOperatorMapping>(Registers, Registers.OperatorOffset(opnum));
             }
 
             // do the initial operator assignment
@@ -131,7 +134,7 @@ namespace Ymfm
                 m_active_channels = 0;
                 for (var chnum = 0; chnum < _channels.Length; chnum++)
                 {
-                    if (Utils.Bitfield(channelMask, chnum) != 0 && _channels[chnum].Prepare())
+                    if (Utils.Bit(channelMask, chnum) && _channels[chnum].Prepare())
                     {
                         m_active_channels |= 1u << chnum;
                     }
@@ -158,7 +161,7 @@ namespace Ymfm
             // now update the state of all the channels and operators
             for (var chnum = 0; chnum < _channels.Length; chnum++)
             {
-                if (Utils.Bitfield(channelMask, chnum) != 0)
+                if (Utils.Bit(channelMask, chnum))
                 {
                     _channels[chnum].Clock(m_env_counter, lfoRawPm);
                 }
@@ -195,7 +198,7 @@ namespace Ymfm
                 // sum over all the desired channels
                 for (var chnum = 0; chnum < _channels.Length; chnum++)
                 {
-                    if (Utils.Bitfield(channelMask, chnum) != 0)
+                    if (Utils.Bit(channelMask, chnum))
                     {
                         if (chnum == 6)
                             _channels[chnum].OutputRhythmChannel6(ref output, rShift, clipMax);
@@ -215,7 +218,7 @@ namespace Ymfm
                 // sum over all the desired channels
                 for (var chnum = 0; chnum < _channels.Length; chnum++)
                 {
-                    if (Utils.Bitfield(channelMask, chnum) != 0)
+                    if (Utils.Bit(channelMask, chnum))
                     {
                         if (_channels[chnum].Is4Op)
                             _channels[chnum].Output4Op(ref output, rShift, clipMax);
@@ -254,7 +257,7 @@ namespace Ymfm
                 else if (Registers.Channels >= 9 && keyOnChannel == Registers.RhythmChannel)
                 {
                     // special case for the OPL rhythm channels
-                    _channels[6].KeyOnOff(Utils.Bitfield(keyOnOpMask, 4) != 0 ? 3u : 0u, KeyOnType.Rhythm, 6);
+                    _channels[6].KeyOnOff(Utils.Bit(keyOnOpMask, 4) ? 3u : 0u, KeyOnType.Rhythm, 6);
                     _channels[7].KeyOnOff(Utils.Bitfield(keyOnOpMask, 0) | (Utils.Bitfield(keyOnOpMask, 3) << 1),
                         KeyOnType.Rhythm,
                         7);
@@ -321,7 +324,7 @@ namespace Ymfm
             return _channels[index];
         }
 
-        public FmOperator<TRegisters, TOutput, TOperatorMapping> DebugOperator(uint index)
+        public FmOperator<TRegisters, TOperatorMapping> DebugOperator(uint index)
         {
             return _operators[index];
         }
@@ -423,7 +426,7 @@ namespace Ymfm
         // assign the current set of operators to channels
         protected void AssignOperators()
         {
-            var map = new TOperatorMapping(); 
+            var map = new TOperatorMapping();
             Registers.OperatorMap(ref map);
 
             for (var channel = 0; channel < Registers.Channels; channel++)
@@ -451,10 +454,8 @@ namespace Ymfm
                 Interface.SetTimer(timerNumber, (int)(period * _operators.Length * m_clock_prescale));
                 m_timer_running[timerNumber] = 1;
             }
-
-            // if the timer is not live, ensure it is not enabled
             else if (enable == 0)
-            {
+            { // if the timer is not live, ensure it is not enabled
                 Interface.SetTimer(timerNumber, -1);
                 m_timer_running[timerNumber] = 0;
             }
@@ -471,6 +472,6 @@ namespace Ymfm
         protected uint m_modified_channels; // mask of channels that have been modified
         protected uint m_prepare_count; // counter to do periodic prepare sweeps
         protected readonly FmChannel<TRegisters, TOutput, TOperatorMapping>[] _channels; // channel pointers
-        protected readonly FmOperator<TRegisters, TOutput, TOperatorMapping>[] _operators; // operator pointers
+        protected readonly FmOperator<TRegisters, TOperatorMapping>[] _operators; // operator pointers
     };
 }

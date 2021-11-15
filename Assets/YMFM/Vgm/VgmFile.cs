@@ -1,11 +1,11 @@
 ﻿using System;
-using System.Diagnostics;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Text;
+using JD.EditorAudioUtils;
 using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.Assertions;
-
 #if UNITY_EDITOR
 using Sirenix.Utilities.Editor;
 #endif
@@ -19,18 +19,22 @@ namespace Ymfm.Vgm
         [SerializeField, HideInInspector]
         private byte[] _data = Array.Empty<byte>();
 
+        internal byte[] DataArray => _data;
+
         [SerializeField]
         private VgmHeader _header;
 
         [SerializeField, HideIf("@_header.Gd3Offset == 0")]
         private Gd3Tags _tags;
 
+        [SerializeField]
+        private List<uint> _dataBlockOffsets;
+
         public Gd3Tags Tags => _tags;
 
         public ref VgmHeader Header => ref _header;
 
-        public ReadOnlySpan<byte> Data => _data;
-
+        public ReadOnlyMemory<byte> Data => _data;
 
         public static VgmFile CreateInstance(ReadOnlySpan<byte> data)
         {
@@ -77,24 +81,32 @@ namespace Ymfm.Vgm
         }
 
 
-        public AudioClip GetAudioClip()
-        {
-            var clip = AudioClip.Create("", 0, 0, 0, true, OnReadData, OnPositionSet);
-            return clip;
-        }
-
-        private void OnReadData(float[] data)
-        {
-            // TODO: Call VgmChip.Generate()
-            // TODO: The hard part will be looping (although if onpositionset is called a lot, i could use modulo or something)
-        }
-
-        private void OnPositionSet(int position)
-        {
-            // TODO: set VgmChip.OututPosition to position
-        }
-
 #if UNITY_EDITOR
+        private VgmPlayer _player;
+
+        [ContextMenu("Play")]
+        private void Play()
+        {
+            if (_player != null)
+            {
+                Stop();
+            }
+
+            _player = new VgmPlayer(this);
+            EditorAudioUtility.PlayPreviewClip(_player.Clip);
+        }
+
+        [ContextMenu("Stop")]
+        private void Stop()
+        {
+            if (_player != null)
+            {
+                EditorAudioUtility.StopPreviewClip(_player.Clip);
+                _player.Dispose();
+                _player = null;
+            }
+        }
+
         [OnInspectorGUI]
         private void OnInspectorGUI()
         {
